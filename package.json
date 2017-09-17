@@ -1,0 +1,11 @@
+{
+  "name": "WeebReact",
+  "version": "0.1.0",
+  "main": "main.js",
+  "devDependencies": {
+    "electron": "1.7.6"
+  },
+  "dependencies": {
+    "nedb": "^1.8.0"
+  }
+}
