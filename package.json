@@ -2,10 +2,13 @@
   "name": "WeebReact",
   "version": "0.1.0",
   "main": "main.js",
+  "scripts": {
+    "weeb": "electron ."
+  },
   "devDependencies": {
     "electron": "1.7.6"
   },
   "dependencies": {
-    "nedb": "^1.8.0"
+    "better-sqlite3": "^4.0.2"
   }
 }
