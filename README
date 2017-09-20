@@ -1,2 +1,4 @@
 A program to organize Reaction Pictures using a tagging and sorting system specially made for this kind of usage.
 I'm to lazy to add proper descriptions to every commit until the program is at least in an useable state.
+
+I'll also eventually clean up the code, but since I am not too familiar with the Electron framework yet I have to test around a lot to get things working, hence the code will be somewhat unclean for now.
