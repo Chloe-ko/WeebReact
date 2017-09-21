@@ -5,7 +5,7 @@ const url = require ('url');
 let win
 
 function createWindow() {
-	win = new BrowserWindow({width: 800, height: 600, frame: false, minWidth: 700, minHeight: 500, title: "WeebReact"});
+	win = new BrowserWindow({width: 1200, height: 700, frame: false, minWidth: 700, minHeight: 500, title: "WeebReact"});
 	win.loadURL(url.format({
 		pathname: path.join(__dirname, 'index.html'),
 		protocol: 'file',
