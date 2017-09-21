@@ -246,4 +246,19 @@ html,body {
 	height: 68px;
 	width: calc(100% - 140px);
 	margin-left: 10px;
+	position: relative;
+}
+#searchbar {
+	width: 130px;
+	height: 20px;
+	font-size: 1.1em;
+	position: absolute;
+	bottom: 10px;
+	left: 5px;
+	border-radius: 10px;
+	border: 0;
+	outline: none;
+	padding-left: 10px;
+	padding-right: 10px;
+	text-align: center;
 }
