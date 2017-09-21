@@ -4,6 +4,8 @@ const url = require ('url');
 
 let win
 
+var isMaximized;
+
 function createWindow() {
 	win = new BrowserWindow({width: 1200, height: 700, frame: false, minWidth: 700, minHeight: 500, title: "WeebReact", transparent: true});
 	win.loadURL(url.format({
@@ -19,7 +21,15 @@ function createWindow() {
 	ipcMain.on('reload', function() {
 		win.reload();
 	});
-	win.on('move', function() {
+	ipcMain.on('getPositionSize', function() {
+		win.webContents.send('sendPositionSize', {pos: win.getPosition(), size: win.getSize()});
+	});
+	ipcMain.on('setPositionSize', function(event, data) {
+		win.setSize(data.size[0], data.size[1]);
+		win.setPosition(data.pos[0], data.pos[1]);
+	});
+	ipcMain.on('maximize', function () {
+		isMaximized = true;
 		console.log("test");
 	});
 	win.webContents.openDevTools();

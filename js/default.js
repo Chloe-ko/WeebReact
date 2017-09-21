@@ -7,6 +7,9 @@ var loadnew = true;
 var pictureid = 0;
 var firstRun = true;
 var canLoadMore = true;
+var isMaximized;
+var windowPosition = [];
+var windowSize = [];
 if(fs.existsSync(process.env.APPDATA + "\\WeebReact\\data.sqlite")) {
 	firstRun = false;
 }
@@ -22,12 +25,15 @@ function init() {
 	});
 	document.getElementById("maximize-btn").addEventListener("click", function (e) {
 		const window = remote.getCurrentWindow();
-		if (!window.isMaximized()) {
+		if (isMaximized == undefined || !isMaximized) {
+			ipcRenderer.send('getPositionSize');
 			window.maximize();
+			ipcRenderer.send('maximize');
+			isMaximized = true;
 			checkIfAtBottom();
 		} else {
-			window.unmaximize();
-			checkIfAtBottom();
+			ipcRenderer.send('setPositionSize', {pos: windowPosition, size: windowSize});
+			isMaximized = false;
 		}
 	});
 	document.getElementById("close-btn").addEventListener("click", function (e) {
@@ -62,36 +68,39 @@ function init() {
 }
 function checkIfAtBottom() {
 	obj = document.getElementById("mainpagecontent");
-	if(obj.scrollHeight - obj.clientHeight - obj.scrollTop < 80) {
+	obj2 = document.getElementById("picturecontainer");
+	if(obj2.scrollHeight - obj.clientHeight - obj.scrollTop < 80) {
 		if(loadnew && canLoadMore) {
 			loadnew = false;
 			loadMorePictures();
 			loadnew = true;
+			checkIfAtBottom();
 		}
 	}
 }
 function loadMorePictures() {
-	var mainHeight = document.getElementById("mainpagecontent").clientHeight;
-	var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-	var picAmount = (Math.floor(mainWidth/210)*Math.floor(mainHeight/210));
-	if(pictureid + picAmount > piccount) {
-		picAmount = piccount - pictureid;
-		canLoadMore = false;
-	}
-	var pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC LIMIT ? OFFSET ?').all(picAmount, pictureid);
-	var i;
-	var htmlToAdd = "";
-	for(i = 0; i < picAmount; i+=1) {
-		htmlToAdd += "<div class=\"piccontainer\"><img draggable=\"true\" ondragstart=\"drag(event, \'" + pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\\\\" + pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
-		pictureid++;
-	}
-	document.getElementById('picloader').insertAdjacentHTML('beforeBegin', htmlToAdd);
-	if(!canLoadMore) {
-		removeElementById('picloader');
+	if(canLoadMore) {
+		var mainHeight = document.getElementById("mainpagecontent").clientHeight;
+		var mainWidth = document.getElementById("mainpagecontent").clientWidth;
+		var picAmount = (Math.floor(mainWidth/210)*Math.floor(mainHeight/210));
+		if(pictureid + picAmount > piccount) {
+			picAmount = piccount - pictureid;
+			canLoadMore = false;
+		}
+		var pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC LIMIT ? OFFSET ?').all(picAmount, pictureid);
+		var i;
+		var htmlToAdd = "";
+		for(i = 0; i < picAmount; i+=1) {
+			htmlToAdd += "<div class=\"piccontainer\"><img draggable=\"true\" ondragstart=\"drag(event, \'" + pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\\\\" + pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
+			pictureid++;
+		}
+		document.getElementById('picloader').insertAdjacentHTML('beforeBegin', htmlToAdd);
+		if(!canLoadMore) {
+			removeElementById('picloader');
+		}
 	}
 }
 function loadPictures() {
-	
 		var mainHeight = document.getElementById("mainpagecontent").clientHeight;
 		var mainWidth = document.getElementById("mainpagecontent").clientWidth;
 		var picAmount = 3*(Math.floor(mainWidth/210)*Math.floor(mainHeight/210));
@@ -102,11 +111,12 @@ function loadPictures() {
 		var pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC LIMIT ?').all(picAmount);
 		var i;
 		for(i = 0; i < picAmount; i+=1) {
-			document.getElementById("mainpagecontent").innerHTML += "<div class=\"piccontainer\"><img draggable=\"true\" ondragstart=\"drag(event, \'" + pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\\\\" + pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
+			document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img draggable=\"true\" ondragstart=\"drag(event, \'" + pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\\\\" + pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2") + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
 			pictureid++;
 		}
+		document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(mainWidth/210))*210 + "px";
 		if(canLoadMore) {
-			document.getElementById("mainpagecontent").innerHTML += "<div id=\"picloader\"><div class=\"loader\"></div></div>";
+			document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"><div class=\"loader\"></div></div>";
 		}
 }
 function checkPictures(directory) {
@@ -226,3 +236,7 @@ document.onreadystatechange = function () {
 window.onbeforeunload = function() {
 	db.close();
 };
+ipcRenderer.on('sendPositionSize', function(event, data) {
+	windowPosition = data.pos;
+	windowSize = data.size;
+});
