@@ -8,24 +8,23 @@
 	</head>
 	<body>
 		<div id="content">
-			<div id="overlay">
-			</div>
-			<div id="setup">
-				<div id="setupcontentframe">
-				</div>
-			</div>
 			<div id="topbar" oncontextmenu="return false;">
 				<div id="blackline"></div>
 				<div id="titlebox">
-					<div id="blackbox"></div>
-					<div id="greybox"></div>
+					<div id="blackboxl"></div>
+					<div id="greyboxl"></div>
+					<div id="blackboxr"></div>
+					<div id="greyboxr"></div>
 					<div id="titlebuttons">
 						<img draggable="false" src="img/minimize.png" id="minimize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/maximize.png" id="maximize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/close.png" id="close-btn" class="titlebar-btn button-glow" />
 					</div>
 					<div id="title">WeebReact</div>
 				</div>
 				<div id="options">
-					<input type="text" id="searchbar" placeholder="Search" />
+					<div id="tagsearch">
+						<input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder='';" onblur="this.placeholder='Search'" />
+						<div class="includetag tag" id="test">Tag1</div><div class="includetag tag">Tag2</div><div class="excludetag tag">Tag3</div>
+					</div>
 				</div>
 			</div>
 			<div id="mainpage">
@@ -37,6 +36,14 @@
 					<div id="picturescrollcontainer">
 						<div id="picturecontainer">
 						</div>
+					</div>
+				</div>
+			</div>
+			<div id="overlay">
+			</div>
+			<div id="setup">
+				<div id="setupcontentframe">
+					<div id="setupcontent">
 					</div>
 				</div>
 			</div>
