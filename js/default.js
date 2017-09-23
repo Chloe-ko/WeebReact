@@ -207,6 +207,19 @@ function checkIfAtBottom(scrollcontainer) {
 		}
 	}
 }
+function openDetails(picid) {
+	console.log(picid);
+	var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(picid+1);
+	var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
+	var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+	var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+	if(extension == "mp4" || extension == "webm") {
+		document.getElementById('filepreview').innerHTML = "<video oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay controls><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
+	} else {
+		document.getElementById('filepreview').innerHTML = "<img oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
+	}
+	document.getElementById('details').style.display = "block";
+}
 function loadMorePictures() {
 	if(canLoadMore) {
 		var mainHeight = document.getElementById("mainpagecontent").clientHeight;
@@ -257,9 +270,9 @@ function loadPictures() {
 		picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
 		extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
 		if(extension == "webm" || extension == "mp4") {
-			document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><video oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
+			document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
 		} else {
-			document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
+			document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
 		}
 		picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
 		pictureid++;
