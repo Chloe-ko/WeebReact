@@ -5,6 +5,7 @@ const dialog = remote.require('electron').dialog;
 const xxh = require('xxhash');
 const path = require('path');
 const outclick = require('outclick');
+const moment = require('moment');
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
 	fs.mkdirSync(appDataFolder);
@@ -72,7 +73,7 @@ function init() {
 		document.getElementById('setup').style.display = 'block';
 		if(!sqlalreadysetup) {
 			db.pragma('journal_mode = WAL');
-			db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, hash text unique, excluded integer, unique(path, filename));').run();
+			db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, hash text unique, excluded integer, timeAdded integer, unique(path, filename));').run();
 			db.prepare('CREATE TABLE tags (tag text, id int, unique(tag, id));').run();
 			db.prepare('CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);').run();
 		}
@@ -368,7 +369,7 @@ function addFolder(directory, sub, tag) {
 				filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
 				checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
 				if(checkduplicate == 0) {
-					db.prepare('INSERT INTO pictures (filename, path, hash, excluded) VALUES (?,?,?,?);').run(filename, picpath, filehash, 0);
+					db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
 					x++;
 				}
 			}
@@ -385,7 +386,7 @@ function addFolder(directory, sub, tag) {
 						filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
 						checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
 						if(checkduplicate == 0) {
-							db.prepare('INSERT INTO pictures (filename, path, hash, excluded) VALUES (?,?,?,?);').run(filename, picpath, filehash, 0);
+							db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
 							x++;
 							if(tag) {
 								id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);

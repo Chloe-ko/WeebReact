@@ -267,6 +267,30 @@ html,body {
 	overflow-x: hidden;
 	text-align: center;
 }
+#details {
+	height: calc(100% - 90px);
+	width: calc(100% - 20px);
+	position: fixed;
+	top: 80px;
+	left: 10px;
+	background-color: #282828;
+	border-radius: 10px;
+}
+#filepreview {
+	display: inline-block;
+	height: calc(100% - 20px);
+	width: calc(50% - 20px);
+	background-color: red;
+	margin: 10px;
+	border-radius: 10px;
+}
+#filedetails {
+	display: inline-block;
+	height: 100%;
+	width: 50%;
+	border-top-right-radius: 10px;
+	border-bottom-right-radius: 10px;
+}
 #mainpageoverlay {
 	position: fixed;
 	height: 100%;
