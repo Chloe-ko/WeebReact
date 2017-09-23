@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^4.0.2",
+    "outclick": "^0.1.0",
     "xxhash": "^0.2.4"
   }
 }

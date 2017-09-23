@@ -7,7 +7,7 @@ let win
 var isMaximized;
 
 function createWindow() {
-	win = new BrowserWindow({width: 1200, height: 700, frame: false, minWidth: 700, minHeight: 500, title: "WeebReact"});
+	win = new BrowserWindow({width: 1200, height: 700, frame: false, minWidth: 700, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false});
 	win.loadURL(url.format({
 		pathname: path.join(__dirname, 'index.html'),
 		protocol: 'file',
@@ -20,6 +20,9 @@ function createWindow() {
 	});
 	ipcMain.on('reload', function() {
 		win.reload();
+	});
+	win.on('ready-to-show', function() {
+		win.show()
 	});
 	win.webContents.openDevTools();
 }
