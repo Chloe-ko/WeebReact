@@ -9,6 +9,7 @@ var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
 	fs.mkdirSync(appDataFolder);
 }
+var contextmenuelement;
 var loadnew = true;
 var pictureid = 0;
 var firstRun = true;
@@ -93,6 +94,9 @@ function scrollFunctions() {
 	scrollingTopside(obj, picsPerLine);
 	scrollingBottomside(obj, picsPerLine);
 	checkIfAtBottom(obj);
+	if(document.getElementById('contextmenu').style.display == "block") {
+		hideContextMenu(contextmenuelement);
+	}
 }
 function scrollingBottomside(obj, picsPerLine) {
 	var i;
@@ -168,6 +172,7 @@ function getCursorPosition(e) {
 }
 function showContextMenu(event, el, picid) {
 	var contextmenu = document.getElementById('contextmenu');
+	contextmenuelement = el;
 	contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + ")\">Show in Folder</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Remove</div></div>";
 	var cursorPosition = getCursorPosition(event);
 	contextmenu.style.display = "block";

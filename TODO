@@ -2,11 +2,10 @@
 2.  Tag-search (include and exclude, clear tags button)
 3.  Settings
 4.  Other sorting/filter options (eg. only certain filetypes, sort by when added)
-5.  Instead of importing pictures, make a system to chose a folder and use all pics inside, actively scan for changes inside of directory
+5.  actively scan for changes inside of directory
 5.  when changes are done while program is off, check changes on startup
     If pictures are missing from directory and there are new ones, check if they've been renamed using hash (xxhash)
 6.  Preview and additional details page when clicking on a pic
-7.  Context Menu for pictures (Show in folder, remove, ..)
 8.  Thumbnails for .mp4 and .webm files
 9.  Selection feature to add/remove tags from multiple pics at once
 10. Design! Needs animations for look cleaner
@@ -32,5 +31,6 @@ Testers: dante, captchakid, silverrhythm, reycall
 
 Done: Use folders instead of importing pictures, tag them automatically based on subfolders
       Use video as thumbnail; play only when on screen
+      Context Menu
 
 Next thing to do: Detail page
