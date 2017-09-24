@@ -267,6 +267,23 @@ html,body {
 	overflow-x: hidden;
 	text-align: center;
 }
+.fileDetailsCategory {
+	width: 100%;
+	text-align: left;
+	margin-top: 10px;
+	color: white;
+}
+.fileDetailsName {
+	display: inline-block;
+	width: 100px;
+	vertical-align: top;
+}
+.fileDetailsDetails {
+	display: inline-block;
+	word-break: break-all;
+	word-wrap: break-word;
+	width: calc(100% - 100px);
+}
 #details {
 	height: calc(100% - 90px);
 	width: calc(100% - 20px);
@@ -276,6 +293,7 @@ html,body {
 	background-color: #282828;
 	border-radius: 10px;
 	display: none;
+	opacity: 0;
 }
 #filepreview {
 	display: inline-block;
@@ -292,7 +310,7 @@ html,body {
 	top: 50%;
 	-webkit-transform: translate(0%, -50%);
 }
-#filedetails {
+#filedetailswrapper {
 	display: inline-block;
 	position: relative;
 	height: 100%;
@@ -300,6 +318,14 @@ html,body {
 	border-top-right-radius: 10px;
 	border-bottom-right-radius: 10px;
 	vertical-align: top;
+}
+#filedetails {
+	width: calc(100% - 20px);
+	height: calc(100% - 60px);
+	margin: 10px;
+	margin-top: 50px;
+	overflow-y: scroll;
+	overflow-x: hidden;
 }
 #closeDetails {
 	cursor: pointer;
@@ -399,4 +425,7 @@ html,body {
 }
 .contextmenutext {
 	padding-top: 12px;
+}
+#picturescrollcontainer {
+	height: 0px;
 }

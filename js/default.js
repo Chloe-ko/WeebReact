@@ -1,6 +1,6 @@
 const sql = require('better-sqlite3');
 const fs = require('fs');
-const {remote, ipcRenderer, shell} = require('electron');
+const {remote, ipcRenderer, shell, clipboard} = require('electron');
 const dialog = remote.require('electron').dialog;
 const xxh = require('xxhash');
 const path = require('path');
@@ -35,13 +35,11 @@ if(!firstRun) {
 	}
 }
 var piccount;
-if(!firstRun) {
-	countPics();
-}
 function countPics(tags) {
 	if(tags == undefined) {
-		piccount = db.prepare("SELECT count(*) FROM pictures").get()["count(*)"]
+		piccount = db.prepare("SELECT count(*) FROM pictures").get()["count(*)"];
 	}
+	document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/210))*210 + "px";
 }
 function init() {
 	document.getElementById("minimize-btn").addEventListener("click", function (e) {
@@ -98,12 +96,12 @@ function scrollFunctions() {
 	if(document.getElementById('contextmenu').style.display == "block") {
 		hideContextMenu(contextmenuelement);
 	}
+	countPics();
 }
 function scrollingBottomside(obj, picsPerLine) {
 	var i;
 	var element;
 	var x = Math.ceil((obj.scrollTop + obj.clientHeight)/210)*(Math.floor(obj.clientWidth/210));
-	var picsPerWindow = Math.floor(obj.clientWidth/210)*Math.ceil(obj.clientHeight/210);
 	if(x > lastX && x < pictureid) {
 		for(i = x - picsPerLine; i < x; i += 1) {
 			element = document.getElementById('picture' + i);
@@ -112,7 +110,7 @@ function scrollingBottomside(obj, picsPerLine) {
 			}
 		}
 		lastX = x;
-	} else if(x < lastX && x < pictureid) {
+	} else if(x < lastX && x < pictureid && lastX < pictureid) {
 		for(i = x; i < x + picsPerLine; i += 1) {
 			element = document.getElementById('picture' + i);
 			if(element.tagName.toLowerCase() == "video") {
@@ -121,7 +119,7 @@ function scrollingBottomside(obj, picsPerLine) {
 		}
 		lastX = x;
 	} else if (x > lastX && x > pictureid && pictureid == piccount) {
-		var picsToPlay = x - pictureid;
+		var picsToPlay = picsPerLine - (x - pictureid);
 		var p;
 		for(i = 0; i < picsToPlay; i += 1) {
 			p = lastX + i;
@@ -131,7 +129,7 @@ function scrollingBottomside(obj, picsPerLine) {
 			}
 		}
 		lastX = x;
-	} else if (x < lastX && lastX > pictureid) {
+	} else if (x < lastX && lastX > pictureid && x < pictureid) {
 		var p;
 		var picsToPause = pictureid - x;
 		for(i = 0; i < picsToPause; i += 1) {
@@ -141,6 +139,7 @@ function scrollingBottomside(obj, picsPerLine) {
 				element.pause();
 			}
 		}
+		lastX = x;
 	}
 }
 function scrollingTopside(obj, picsPerLine) {
@@ -171,10 +170,13 @@ function showInFolder (id) {
 function getCursorPosition(e) {
 	return [(window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft), (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)];
 }
+function copyLocation(id) {
+	clipboard.writeText(picPaths[id]);
+}
 function showContextMenu(event, el, picid) {
 	var contextmenu = document.getElementById('contextmenu');
 	contextmenuelement = el;
-	contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + ")\">Show in Folder</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Remove</div></div>";
+	contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + ")\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + ");\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
 	var cursorPosition = getCursorPosition(event);
 	contextmenu.style.display = "block";
 	if(document.getElementById('content').clientWidth - cursorPosition[0] < contextmenu.clientWidth) {
@@ -207,18 +209,55 @@ function checkIfAtBottom(scrollcontainer) {
 		}
 	}
 }
+function closeFileDetails() {
+	var previewedFile = document.getElementById('previewedfile');
+	if(previewedFile.tagName.toLowerCase() == "video") {
+		previewedFile.pause();
+	}
+	var opa = 1;
+	var anim = setInterval(animateCloseDetails, 5);
+	function animateCloseDetails() {
+		if(document.getElementById('details').style.opacity <= "0") {
+			document.getElementById('details').style.display = "none";
+			document.getElementById('filedetails').innerHTML = "";
+			clearInterval(anim);
+		} else {
+			opa -= 0.05;
+			document.getElementById('details').style.opacity = opa;
+		}
+	}
+}
 function openDetails(picid) {
-	console.log(picid);
 	var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(picid+1);
 	var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
 	var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
 	var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
 	if(extension == "mp4" || extension == "webm") {
-		document.getElementById('filepreview').innerHTML = "<video oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay controls><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
+		document.getElementById('filepreview').innerHTML = "<video id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
 	} else {
-		document.getElementById('filepreview').innerHTML = "<img oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
+		document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
+	}
+	var details = [];
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Location</div><div class=\"fileDetailsDetails\">" + pic.path + "</div></div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\">" + "placeholder" + "</div></div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment.unix(pic.timeAdded).format("DD/MM/YYYY") + "</div></div>");
+	var i;
+	for(i = 0; i < details.length; i += 1) {
+		document.getElementById('filedetails').innerHTML += details[i];
 	}
 	document.getElementById('details').style.display = "block";
+	var anim = setInterval(animateOpenDetails, 5);
+	var opa = 0;
+	function animateOpenDetails() {
+		if(document.getElementById('details').style.opacity == "1") {
+			clearInterval(anim);
+		} else {
+			opa += 0.05;
+			document.getElementById('details').style.opacity = opa;
+		}
+	}
 }
 function loadMorePictures() {
 	if(canLoadMore) {
@@ -239,9 +278,9 @@ function loadMorePictures() {
 			picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
 			extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
 			if(extension == "mp4" || extension == "webm") {
-				document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><video oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>");
+				document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>");
 			} else {
-				document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
+				document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
 			}
 			picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
 			pictureid++;
@@ -277,7 +316,6 @@ function loadPictures() {
 		picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
 		pictureid++;
 	}
-	document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(mainWidth/210))*210 + "px";
 	if(canLoadMore) {
 		document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"><div class=\"loader\"></div></div>";
 	}
@@ -312,9 +350,9 @@ function askIfTagged(dir) {
 		addFolder(dir, true, false);
 	})
 }
-function countPics() {
+/*function countPics() {
 	piccount = db.prepare('SELECT count(*) from pictures').get()["count(*)"];
-}
+}*/
 function checkIfHasSubdirs(dir) {
 	var hasSubdirs = false;
 	var files = fs.readdirSync(dir);

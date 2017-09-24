@@ -6,7 +6,6 @@
 5.  when changes are done while program is off, check changes on startup
     If pictures are missing from directory and there are new ones, check if they've been renamed using hash (xxhash)
 6.  Preview and additional details page when clicking on a pic
-8.  Thumbnails for .mp4 and .webm files
 9.  Selection feature to add/remove tags from multiple pics at once
 10. Design! Needs animations for look cleaner
 11. Built-in updater
