@@ -176,7 +176,7 @@ function copyLocation(id) {
 function showContextMenu(event, el, picid) {
 	var contextmenu = document.getElementById('contextmenu');
 	contextmenuelement = el;
-	contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + ")\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + ");\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
+	contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + ");\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + ");\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
 	var cursorPosition = getCursorPosition(event);
 	contextmenu.style.display = "block";
 	if(document.getElementById('content').clientWidth - cursorPosition[0] < contextmenu.clientWidth) {
@@ -240,9 +240,21 @@ function openDetails(picid) {
 	var details = [];
 	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
 	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
-	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Location</div><div class=\"fileDetailsDetails\">" + pic.path + "</div></div>");
-	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\">" + "placeholder" + "</div></div>");
-	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment.unix(pic.timeAdded).format("DD/MM/YYYY") + "</div></div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Location</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment.unix(pic.timeAdded).format("DD/MM/YYYY") + "</div></div></div><br /><br />");
+	var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid+1);
+	var tagHtml = "";
+	var i;
+	document.getElementById('detailsShowInFolderButton').onclick = function() {
+		showInFolder(picid);
+	};
+	document.getElementById('detailsCopyLocationButton').onclick = function() {
+		copyLocation(picid);
+	};
+	for(i = 0; i < tags.length; i += 1) {
+		tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div></div>";
+	}
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
 	var i;
 	for(i = 0; i < details.length; i += 1) {
 		document.getElementById('filedetails').innerHTML += details[i];
@@ -372,6 +384,12 @@ function checkIfHasSubdirs(dir) {
 }
 function removeElementById(id) {
 	document.getElementById(id).parentNode.removeChild(document.getElementById(id));
+}
+function removeElement(el) {
+	el.parentNode.removeChild(el);
+}
+function removeTagFromPicture(picid, tag) {
+
 }
 function getDirectories(dir, isSub, isSubOf) {
 	var files = fs.readdirSync(dir);

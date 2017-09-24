@@ -284,6 +284,20 @@ html,body {
 	word-wrap: break-word;
 	width: calc(100% - 100px);
 }
+.picTagListing {
+	display: inline-block;
+	background-color: #1f1f1f;
+	border-radius: 5px;
+	cursor: pointer;
+	margin-right: 5px;
+	margin-bottom: 5px;
+	vertical-align: middle;
+}
+.picTagText {
+	display: inline-block;
+	margin: 5px;
+	vertical-align: middle;
+}
 #details {
 	height: calc(100% - 90px);
 	width: calc(100% - 20px);
@@ -336,6 +350,27 @@ html,body {
 	border-radius: 50%;
 }
 #closeDetails:hover {
+	background-color: #3b3b3b;
+}
+#detailsButtons {
+	height: 40px;
+	margin-top: 10px;
+	width: calc(100% - 60px);
+	text-align: left;
+}
+.detailsButton {
+	display: inline-block;
+	color: white;
+	border-radius: 10px;
+	border: 1px solid black;
+	text-align: center;
+	margin-right: 5px;
+	padding: 5px;
+	background-color: #1f1f1f;
+	cursor: pointer;
+	margin-bottom: 5px;
+}
+.detailsButton:hover {
 	background-color: #3b3b3b;
 }
 #mainpageoverlay {
@@ -425,7 +460,4 @@ html,body {
 }
 .contextmenutext {
 	padding-top: 12px;
-}
-#picturescrollcontainer {
-	height: 0px;
 }
