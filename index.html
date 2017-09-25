@@ -53,8 +53,8 @@
           <div id="editTagsDialogueArea">
             <div id="editTagsDialogueWrapper">
               <div id="editTagsDialogue">
-                <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onblur="document.getElementById('editTagsAutocomplete').innerHTML = '';" onfocus="autocompleteEditTags();" /><button id="editTagsAddButton" class="editTagsButtons">Add</button>
-                <div id="editTagsListing"><div class="editTagsListingTag"><div class="editTagsListingTagText">Test</div><img src="img/close.png" class="editTagsRemoveTag" /></div></div>
+                <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onblur="setTimeout(function() {hideEditTagsAutocomplete();}, 100);" onfocus="autocompleteEditTags();" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value);" class="editTagsButtons">Add</button>
+                <div id="editTagsListing"></div>
                 <div id="editTagsAutocomplete"></div>
               </div>
               <img src="img/close.png" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">

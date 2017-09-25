@@ -6,11 +6,8 @@ const xxh = require('xxhash');
 const path = require('path');
 const outclick = require('outclick');
 const moment = require('moment');
-var appDataFolder = process.env.APPDATA + "\\WeebReact";
-if(!fs.existsSync(appDataFolder)) {
-  fs.mkdirSync(appDataFolder);
-}
 var contextmenuelement;
+var piccount;
 var loadnew = true;
 var pictureid = 0;
 var firstRun = true;
@@ -25,10 +22,15 @@ var menuFunc;
 var picPaths = [];
 var pictureScale = 1;
 var tagsForAutocomplete;
-if(fs.existsSync(process.env.APPDATA + "\\WeebReact\\data.sqlite")) {
+var editTagsArray = [];
+var appDataFolder = process.env.APPDATA + "\\WeebReact";
+if(!fs.existsSync(appDataFolder)) {
+  fs.mkdirSync(appDataFolder);
+}
+var db = new sql(appDataFolder + "\\data.sqlite");
+if(fs.existsSync(appDataFolder + "\\data.sqlite")) {
   firstRun = false;
 }
-var db = new sql(process.env.APPDATA + "\\WeebReact\\data.sqlite");
 if(!firstRun) {
   var firstR = db.prepare("SELECT count(*) FROM directories").get()["count(*)"];
   if(firstR == 0) {
@@ -36,7 +38,6 @@ if(!firstRun) {
     sqlalreadysetup = true;
   }
 }
-var piccount;
 function countPics(tags) {
   if(tags == undefined) {
     piccount = db.prepare("SELECT count(*) FROM pictures").get()["count(*)"];
@@ -294,15 +295,24 @@ function openAddTagsDialog(picid) {
 }
 function autocompleteEditTags () {
   var value = document.getElementById('editTagsInput').value;
-  console.log(value);
   var i;
   var tagsToList = "";
   var x = 0;
+  var z;
+  var add;
   if(value != "") {
     for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+      add = true;
       if(tagsForAutocomplete[i].tag.substring(0, value.length) == value) {
-        tagsToList += "<div id=\"editTagsAutocompleteEntry\" onclick=\"\"><b>" + value + "</b>" + tagsForAutocomplete[i].tag.substr(value.length) + "</div>";
-        x += 1;
+        for(z = 0; z < editTagsArray.length; z += 1) {
+          if(editTagsArray[z] == tagsForAutocomplete[i].tag) {
+            add = false;
+          }
+        }
+        if(add) {
+          tagsToList += "<div id=\"editTagsAutocompleteEntry\" onclick=\"editTagsAddTagToList(\'" + tagsForAutocomplete[i].tag + "\');\"><b>" + value + "</b>" + tagsForAutocomplete[i].tag.substr(value.length) + "</div>";
+          x += 1;
+        }
       }
       if(x == 8) {
         break;
@@ -310,6 +320,28 @@ function autocompleteEditTags () {
     }
   }
   document.getElementById('editTagsAutocomplete').innerHTML = tagsToList;
+}
+function hideEditTagsAutocomplete() {
+  var childarray = Array.from(document.getElementById('editTagsAutocomplete').childNodes);
+  var i;
+  for(i = 0; i < childarray.length; i += 1) {
+    childarray[i].style.backgroundColor = "";
+    childarray[i].style.display = "none";
+  }
+}
+function editTagsAddTagToList (tagname) {
+  var i;
+  var add = true;
+  for(i = 0; i < editTagsArray.length; i += 1) {
+    if(tagname == editTagsArray[i]) {
+      add = false;
+    }
+  }
+  if(add) {
+    editTagsArray.push(tagname);
+    document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.png\" class=\"editTagsRemoveTag\" /></div>";
+    document.getElementById('editTagsInput').value = "";
+  }
 }
 function hideEditTagsDialogue() {
   var anim = setInterval(animateCloseTagsDialogue, 5);
@@ -327,6 +359,9 @@ function hideEditTagsDialogue() {
       document.getElementById('editTagsDialogueArea').style.opacity = opa;
     }
   }
+  document.getElementById('editTagsInput').value = "";
+  editTagsArray = [];
+  document.getElementById('editTagsListing').innerHTML = "";
 }
 function loadMorePictures() {
   if(canLoadMore) {
