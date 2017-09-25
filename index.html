@@ -1,65 +1,78 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="UTF-8">
-		<title>WeebReact</title>
-		<link rel="stylesheet" type="text/css" href="main.css" />
-		<script src="js/default.js" type="text/javascript"></script>
-	</head>
-	<body>
-		<div id="content">
-			<div id="topbar" oncontextmenu="return false;">
-				<div id="blackline"></div>
-				<div id="titlebox">
-					<div id="blackboxl"></div>
-					<div id="greyboxl"></div>
-					<div id="blackboxr"></div>
-					<div id="greyboxr"></div>
-					<div id="titlebuttons">
-						<img draggable="false" src="img/minimize.png" id="minimize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/maximize.png" id="maximize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/close.png" id="close-btn" class="titlebar-btn button-glow" />
-					</div>
-					<div id="title">WeebReact</div>
-				</div>
-				<div id="options">
-					<div id="tagsearch">
-						<input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder='';" onblur="this.placeholder='Search'" />
-						<div class="includetag tag" id="test">Tag1</div><div class="includetag tag">Tag2</div><div class="excludetag tag">Tag3</div>
-					</div>
-				</div>
-			</div>
-			<div id="mainpage">
-				<div id="mainpageoverlay">
-					<div id="m-o-loader" class="loader">
-					</div>
-				</div>
-				<div id="mainpagecontent">
-					<div id="picturescrollcontainer">
-						<div id="picturecontainer">
-						</div>
-					</div>
-					<div id="details">
-						<div id="filepreview">
-						</div><div id="filedetailswrapper">
-							<img src="img/closeDetails.png" id="closeDetails" onclick="closeFileDetails();" draggable="false" />
-							<div id="detailsButtons">
-								<div class="detailsButton" id="detailsEditTagsButton">Edit Tags</div><div class="detailsButton" id="detailsShowInFolderButton">Show in Folder</div><div class="detailsButton" id="detailsCopyLocationButton">Copy Location</div><div class="detailsButton" id="detailsExcludeButton">Exclude</div>
-							</div>
-							<div id="filedetails">
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div id="overlay">
-			</div>
-			<div id="setup">
-				<div id="setupcontentframe">
-					<div id="setupcontent">
-					</div>
-				</div>
-			</div>
-			<div id="contextmenu">
-			</div>
-		</div>
-	</body>
+  <head>
+    <meta charset="UTF-8">
+    <title>WeebReact</title>
+    <link rel="stylesheet" type="text/css" href="main.css" />
+    <script src="js/default.js" type="text/javascript"></script>
+  </head>
+  <body>
+    <div id="content">
+      <div id="topbar" oncontextmenu="return false;">
+        <div id="blackline"></div>
+        <div id="titlebox">
+          <div id="blackboxl"></div>
+          <div id="greyboxl"></div>
+          <div id="blackboxr"></div>
+          <div id="greyboxr"></div>
+          <div id="titlebuttons">
+            <img draggable="false" src="img/minimize.png" id="minimize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/maximize.png" id="maximize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/close.png" id="close-btn" class="titlebar-btn button-glow" />
+          </div>
+          <div id="title">WeebReact</div>
+        </div>
+        <div id="options">
+          <div id="tagsearch">
+            <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder='';" onblur="this.placeholder='Search'" />
+            <div class="includetag tag" id="test">Tag1</div><div class="includetag tag">Tag2</div><div class="excludetag tag">Tag3</div>
+          </div>
+        </div>
+      </div>
+      <div id="mainpage">
+        <div id="mainpageoverlay">
+          <div id="m-o-loader" class="loader">
+          </div>
+        </div>
+        <div id="mainpagecontent">
+          <div id="picturescrollcontainer">
+            <div id="picturecontainer">
+            </div>
+          </div>
+          <div id="details">
+            <div id="filepreview">
+            </div><div id="filedetailswrapper">
+              <img src="img/closeDetails.png" id="closeDetails" onclick="closeFileDetails();" draggable="false" />
+              <div id="detailsButtons">
+                <div class="detailsButton" id="detailsShowInFolderButton">Show in Folder</div><div class="detailsButton" id="detailsCopyLocationButton">Copy Location</div><div class="detailsButton" id="detailsExcludeButton">Exclude</div>
+              </div>
+              <div id="filedetails">
+              </div>
+            </div>
+          </div>
+          <div id="editTagsDialogueOverlay">
+          </div>
+          <div id="editTagsDialogueArea">
+            <div id="editTagsDialogueWrapper">
+              <div id="editTagsDialogue">
+                <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onblur="document.getElementById('editTagsAutocomplete').innerHTML = '';" onfocus="autocompleteEditTags();" /><button id="editTagsAddButton" class="editTagsButtons">Add</button>
+                <div id="editTagsListing"><div class="editTagsListingTag"><div class="editTagsListingTagText">Test</div><img src="img/close.png" class="editTagsRemoveTag" /></div></div>
+                <div id="editTagsAutocomplete"></div>
+              </div>
+              <img src="img/close.png" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">
+              <button id="editTagsConfirm" class="editTagsButtons">Confirm</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="overlay">
+      </div>
+      <div id="setup">
+        <div id="setupcontentframe">
+          <div id="setupcontent">
+          </div>
+        </div>
+      </div>
+      <div id="contextmenu">
+      </div>
+    </div>
+  </body>
 </html>

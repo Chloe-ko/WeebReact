@@ -23,6 +23,8 @@ var lastZ = 0;
 var lastX;
 var menuFunc;
 var picPaths = [];
+var pictureScale = 1;
+var tagsForAutocomplete;
 if(fs.existsSync(process.env.APPDATA + "\\WeebReact\\data.sqlite")) {
 	firstRun = false;
 }
@@ -39,7 +41,7 @@ function countPics(tags) {
 	if(tags == undefined) {
 		piccount = db.prepare("SELECT count(*) FROM pictures").get()["count(*)"];
 	}
-	document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/210))*210 + "px";
+	document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*210)))*(pictureScale*210) + "px";
 }
 function init() {
 	document.getElementById("minimize-btn").addEventListener("click", function (e) {
@@ -89,7 +91,7 @@ function init() {
 }
 function scrollFunctions() {
 	var obj = document.getElementById("mainpagecontent");
-	var picsPerLine = Math.floor(obj.clientWidth/210);
+	var picsPerLine = Math.floor(obj.clientWidth/(pictureScale*210));
 	scrollingTopside(obj, picsPerLine);
 	scrollingBottomside(obj, picsPerLine);
 	checkIfAtBottom(obj);
@@ -101,7 +103,7 @@ function scrollFunctions() {
 function scrollingBottomside(obj, picsPerLine) {
 	var i;
 	var element;
-	var x = Math.ceil((obj.scrollTop + obj.clientHeight)/210)*(Math.floor(obj.clientWidth/210));
+	var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
 	if(x > lastX && x < pictureid) {
 		for(i = x - picsPerLine; i < x; i += 1) {
 			element = document.getElementById('picture' + i);
@@ -145,7 +147,7 @@ function scrollingBottomside(obj, picsPerLine) {
 function scrollingTopside(obj, picsPerLine) {
 	var i;
 	var element;
-	var z = Math.floor((obj.scrollTop)/210)*(Math.floor(obj.clientWidth/210));
+	var z = Math.floor((obj.scrollTop)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
 	if(z > 0 && z > lastZ && z < pictureid) {
 		for(i = z - picsPerLine; i < z; i += 1) {
 			element = document.getElementById('picture' + i);
@@ -200,7 +202,7 @@ function hideContextMenu(el) {
 function checkIfAtBottom(scrollcontainer) {
 	obj = scrollcontainer;
 	obj2 = document.getElementById("picturecontainer");
-	if(obj2.scrollHeight - obj.clientHeight - obj.scrollTop < 210) {
+	if(obj2.scrollHeight - obj.clientHeight - obj.scrollTop < (pictureScale*210)) {
 		if(loadnew && canLoadMore) {
 			loadnew = false;
 			loadMorePictures();
@@ -240,7 +242,7 @@ function openDetails(picid) {
 	var details = [];
 	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
 	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
-	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Location</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
 	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment.unix(pic.timeAdded).format("DD/MM/YYYY") + "</div></div></div><br /><br />");
 	var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid+1);
 	var tagHtml = "";
@@ -252,13 +254,14 @@ function openDetails(picid) {
 		copyLocation(picid);
 	};
 	for(i = 0; i < tags.length; i += 1) {
-		tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div></div>";
+		tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" /></div>";
 	}
-	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
+	details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
 	var i;
 	for(i = 0; i < details.length; i += 1) {
 		document.getElementById('filedetails').innerHTML += details[i];
 	}
+	document.getElementById('fileDetailsDetails').innerHTML += "<div class=\"picTagListing picAddTagListing\" onclick=\"openAddTagsDialog(\'" + pic.id + "\')\"><div class=\"picTagText picTagTextAdd\">\+</div></div>";
 	document.getElementById('details').style.display = "block";
 	var anim = setInterval(animateOpenDetails, 5);
 	var opa = 0;
@@ -271,11 +274,65 @@ function openDetails(picid) {
 		}
 	}
 }
+function openAddTagsDialog(picid) {
+	tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
+	document.getElementById('editTagsDialogueOverlay').style.display = "block";
+	document.getElementById('editTagsDialogueArea').style.display = "block";
+	var anim = setInterval(animateOpenTagsDialogue, 5);
+	var opa = 0;
+	var opa2 = 0;
+	function animateOpenTagsDialogue() {
+		if(opa >= 1) {
+			clearInterval(anim);
+		} else {
+			opa += 0.05;
+			opa2 += 0.025;
+			document.getElementById('editTagsDialogueArea').style.opacity = opa;
+			document.getElementById('editTagsDialogueOverlay').style.opacity = opa2;
+		}
+	}
+}
+function autocompleteEditTags () {
+	var value = document.getElementById('editTagsInput').value;
+	console.log(value);
+	var i;
+	var tagsToList = "";
+	var x = 0;
+	if(value != "") {
+		for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+			if(tagsForAutocomplete[i].tag.substring(0, value.length) == value) {
+				tagsToList += "<div id=\"editTagsAutocompleteEntry\"><b>" + value + "</b>" + tagsForAutocomplete[i].tag.substr(value.length) + "</div>";
+				x += 1;
+			}
+			if(x == 8) {
+				break;
+			}
+		}
+	}
+	document.getElementById('editTagsAutocomplete').innerHTML = tagsToList;
+}
+function hideEditTagsDialogue() {
+	var anim = setInterval(animateCloseTagsDialogue, 5);
+	var opa = 1;
+	var opa2 = 0.5;
+	function animateCloseTagsDialogue() {
+		if(opa <= 0) {
+			document.getElementById('editTagsDialogueOverlay').style.display = "none";
+			document.getElementById('editTagsDialogueArea').style.display = "none";
+			clearInterval(anim);
+		} else {
+			opa -= 0.05;
+			opa2 -= 0.025;
+			document.getElementById('editTagsDialogueOverlay').style.opacity = opa2;
+			document.getElementById('editTagsDialogueArea').style.opacity = opa;
+		}
+	}
+}
 function loadMorePictures() {
 	if(canLoadMore) {
 		var mainHeight = document.getElementById("mainpagecontent").clientHeight;
 		var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-		var picAmount = (Math.floor(mainWidth/210)*Math.floor(mainHeight/210));
+		var picAmount = (Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
 		if(pictureid + picAmount > piccount) {
 			picAmount = piccount - pictureid;
 			canLoadMore = false;
@@ -305,7 +362,7 @@ function loadMorePictures() {
 function loadPictures() {
 	var mainHeight = document.getElementById("mainpagecontent").clientHeight;
 	var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-	var picAmount = 3*(Math.floor(mainWidth/210)*Math.floor(mainHeight/210));
+	var picAmount = 3*(Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
 	var extension;
 	countPics();
 	if(piccount < picAmount) {
@@ -331,7 +388,7 @@ function loadPictures() {
 	if(canLoadMore) {
 		document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"><div class=\"loader\"></div></div>";
 	}
-	var picAmountShown = Math.floor(mainWidth/210)*Math.ceil(mainHeight/210);
+	var picAmountShown = Math.floor(mainWidth/(pictureScale*210))*Math.ceil(mainHeight/(pictureScale*210));
 	var element;
 	for(i = 0; i < picAmountShown; i += 1) {
 		element = document.getElementById("picture" + i);
@@ -362,9 +419,6 @@ function askIfTagged(dir) {
 		addFolder(dir, true, false);
 	})
 }
-/*function countPics() {
-	piccount = db.prepare('SELECT count(*) from pictures').get()["count(*)"];
-}*/
 function checkIfHasSubdirs(dir) {
 	var hasSubdirs = false;
 	var files = fs.readdirSync(dir);
@@ -429,20 +483,6 @@ function addFolder(directory, sub, tag) {
 		var tags;
 		var id;
 		var checkduplicate;
-		pictures = getFiles(directory);
-		for (i = 0; i < pictures.length; i += 1) {
-			picpath = pictures[i].substring(0, pictures[i].lastIndexOf("\\"));
-			filename = pictures[i].split('\\').pop();
-			extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
-			if(extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "webm" || extension == "mp4") {
-				filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
-				checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
-				if(checkduplicate == 0) {
-					db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
-					x++;
-				}
-			}
-		}
 		if(sub) {
 			var directories = getDirectories(directory, false, "");
 			for(z = 0; z < directories.length; z += 1) {
@@ -466,6 +506,20 @@ function addFolder(directory, sub, tag) {
 							}
 						}
 					}
+				}
+			}
+		}
+		pictures = getFiles(directory);
+		for (i = 0; i < pictures.length; i += 1) {
+			picpath = pictures[i].substring(0, pictures[i].lastIndexOf("\\"));
+			filename = pictures[i].split('\\').pop();
+			extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+			if(extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "webm" || extension == "mp4") {
+				filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
+				checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
+				if(checkduplicate == 0) {
+					db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
+					x++;
 				}
 			}
 		}

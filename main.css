@@ -286,17 +286,27 @@ html,body {
 }
 .picTagListing {
 	display: inline-block;
-	background-color: #1f1f1f;
+	background-color: #3b3b3b;
 	border-radius: 5px;
 	cursor: pointer;
 	margin-right: 5px;
 	margin-bottom: 5px;
 	vertical-align: middle;
+	border: 1px solid black;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
+}
+.picTagListing:hover {
+	background-color: #2b2b2b;
 }
 .picTagText {
 	display: inline-block;
 	margin: 5px;
 	vertical-align: middle;
+}
+.picTagTextAdd {
+	margin-top: 0;
+	margin-bottom: 0;
 }
 #details {
 	height: calc(100% - 90px);
@@ -308,6 +318,147 @@ html,body {
 	border-radius: 10px;
 	display: none;
 	opacity: 0;
+}
+#editTagsDialogueOverlay {
+	height: calc(100% - 90px);
+	width: calc(100% - 20px);
+	position: fixed;
+	top: 80px;
+	left: 10px;
+	background-color: #282828;
+	border-radius: 10px;
+	display: none;
+	opacity: 0;
+}
+#editTagsDialogueArea {
+	height: calc(100% - 90px);
+	width: calc(100% - 20px);
+	position: fixed;
+	top: 80px;
+	left: 10px;
+	opacity: 0;
+	display: none;
+}
+#editTagsDialogueWrapper {
+	min-height: 100px;
+	width: 281px;
+	background-color: #1f1f1f;
+	position: relative;
+	left: 50%;
+	top: 50%;
+	border-radius: 10px;
+	-webkit-transform: translate(-50%, -50%);
+	border: 1px solid black;
+}
+#editTagsDialogue {
+	min-height: 80px;
+	width: 241px;
+	position: relative;
+	text-align: left;
+	margin: 20px;
+}
+#editTagsCloseButton {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+	cursor: pointer;
+	border-radius: 50px;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
+}
+#editTagsCloseButton:hover {
+	background-color: #2b2b2b;
+}
+#editTagsInput {
+	padding-left: 7px;
+	padding-right: 7px;
+	outline: none;
+	border: 1px solid black;
+	border-radius: 10px;
+	margin-right: 5px;
+	width: 180px;
+	height: 25px;
+}
+.editTagsButtons {
+	outline: none;
+	border-radius: 10px;
+	border: 1px solid black;
+	padding: 3px 5px 3px 5px;
+	cursor: pointer;
+	background-color: #a2a2a2;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
+}
+.editTagsButtons:hover {
+	background-color: #dddddd;
+}
+#editTagsAddButton {
+	width: 40px;
+	height: 30px;
+}
+#editTagsListing {
+	width: 241px;
+	margin-bottom: 35px;
+	margin-top: 10px;
+}
+#editTagsConfirm {
+	position: absolute;
+	bottom: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+.editTagsListingTag {
+	display: inline-block;
+	padding-left: 3px;
+	padding-right: 3px;
+	border-radius: 5px;
+	height: 20px;
+	padding-top: 3px;
+	margin-right: 5px;
+	font-size: 0.9em;
+	background-color: #3b3b3b;
+	margin-bottom: 5px;
+}
+.editTagsRemoveTag {
+	display: inline-block;
+	cursor: pointer;
+	vertical-align: middle;
+	height: 15px;
+	width: 15px;
+	border-radius: 50%;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
+}
+.editTagsRemoveTag:hover {
+	background-color: #757575;
+}
+.editTagsListingTagText {
+	display: inline-block;
+	vertical-align: middle;
+	margin-right: 5px;
+	margin-left: 5px;
+	color: white;
+}
+#editTagsAutocomplete {
+	width: 180px;
+	position: absolute;
+	top: 28px;
+	left: 8px;
+	z-index: 1;
+	background-color: #3b3b3b;
+	color: white;
+}
+#editTagsAutocompleteEntry {
+	width: 170px;
+	overflow: hidden;
+	padding: 5px;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
+	font-size: 0.9em;
+	cursor: pointer;
+}
+#editTagsAutocompleteEntry:hover {
+	background-color: #303030;
 }
 #filepreview {
 	display: inline-block;
@@ -348,12 +499,13 @@ html,body {
 	right: 10px;
 	background-color: #1f1f1f;
 	border-radius: 50%;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
 }
 #closeDetails:hover {
 	background-color: #3b3b3b;
 }
 #detailsButtons {
-	height: 40px;
 	margin-top: 10px;
 	width: calc(100% - 60px);
 	text-align: left;
@@ -366,11 +518,24 @@ html,body {
 	text-align: center;
 	margin-right: 5px;
 	padding: 5px;
-	background-color: #1f1f1f;
+	font-size: 0.8em;
+	background-color: #3b3b3b;
 	cursor: pointer;
 	margin-bottom: 5px;
+	-webkit-transition-duration: 0.3s;
+	-webkit-transition-property: background-color;
 }
 .detailsButton:hover {
+	background-color: #2b2b2b;
+}
+.tagDeleteButton {
+	height: 15px;
+	width: 15px;
+	vertical-align: middle;
+	margin-right: 5px;
+	border-radius: 50%;
+}
+.tagDeleteButton:hover {
 	background-color: #3b3b3b;
 }
 #mainpageoverlay {

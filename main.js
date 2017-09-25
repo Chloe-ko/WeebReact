@@ -7,7 +7,7 @@ let win
 var isMaximized;
 
 function createWindow() {
-	win = new BrowserWindow({width: 1200, height: 700, frame: false, minWidth: 700, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false});
+	win = new BrowserWindow({width: 1100, height: 700, frame: false, minWidth: 910, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false});
 	win.loadURL(url.format({
 		pathname: path.join(__dirname, 'index.html'),
 		protocol: 'file',
