@@ -413,7 +413,7 @@ function loadMorePictures() {
         document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
       }
       picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
-      pictureid++;
+      pictureid += 1;
     }
     if(!canLoadMore) {
       removeElementById('picloader');
@@ -444,7 +444,7 @@ function loadPictures() {
       document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
     }
     picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
-    pictureid++;
+    pictureid += 1;
   }
   if(canLoadMore) {
     document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"><div class=\"loader\"></div></div>";
@@ -557,7 +557,7 @@ function addFolder(directory, sub, tag) {
             checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
             if(checkduplicate == 0) {
               db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
-              x++;
+              x += 1;
               if(tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
                 tags = directories[z].split("\\");
@@ -580,7 +580,7 @@ function addFolder(directory, sub, tag) {
         checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
         if(checkduplicate == 0) {
           db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
-          x++;
+          x += 1;
         }
       }
     }
