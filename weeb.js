@@ -23,6 +23,7 @@ var picPaths = [];
 var pictureScale = 1;
 var tagsForAutocomplete;
 var editTagsArray = [];
+var editTagsAlreadyAssigned = [];
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
@@ -277,6 +278,16 @@ function openDetails(picid) {
 }
 function openAddTagsDialog(picid) {
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
+  editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
+  var i;
+  var z;
+  for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+    for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
+      if(tagsForAutocomplete[i].tag == editTagsAlreadyAssigned[z].tag) {
+        tagsForAutocomplete.splice(i, 1);
+      }
+    }
+  }
   document.getElementById('editTagsDialogueOverlay').style.display = "block";
   document.getElementById('editTagsDialogueArea').style.display = "block";
   var anim = setInterval(animateOpenTagsDialogue, 5);
@@ -332,15 +343,30 @@ function hideEditTagsAutocomplete() {
 function editTagsAddTagToList (tagname) {
   var i;
   var add = true;
+  var z;
   for(i = 0; i < editTagsArray.length; i += 1) {
     if(tagname == editTagsArray[i]) {
       add = false;
     }
   }
+  for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
+    if(tagname == editTagsAlreadyAssigned[z].tag) {
+      add = false;
+    }
+  }
   if(add) {
     editTagsArray.push(tagname);
-    document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.png\" class=\"editTagsRemoveTag\" /></div>";
+    document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.png\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
     document.getElementById('editTagsInput').value = "";
+  }
+}
+function editTagsRemoveTag (tag, elm) {
+  var i;
+  for(i = 0; i < editTagsArray.length; i += 1) {
+    if(tag == editTagsArray[i]) {
+      editTagsArray.splice(i, 1);
+      removeElement(elm.parentNode);
+    }
   }
 }
 function hideEditTagsDialogue() {
