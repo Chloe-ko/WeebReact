@@ -6,15 +6,16 @@ Once all the important things are done I'll make the code far cleaner.
 
 TODO:
 
-1.  Tag-system
-2.  Tag-search (include and exclude, clear tags button)
-3.  Settings
-4.  Other sorting/filter options (eg. only certain filetypes, sort by when added)
-5.  actively scan for changes inside of directory
+1.  Tag-search (include and exclude, clear tags button)
+2.  Settings
+3.  Other sorting/filter options (eg. only certain filetypes, sort by when added)
+4.  actively scan for changes inside of directory
 5.  when changes are done while program is off, check changes on startup
-    If pictures are missing from directory and there are new ones, check if they've been renamed using hash (xxhash)
-6.  Preview and additional details page when clicking on a pic
-9.  Selection feature to add/remove tags from multiple pics at once
+    If pictures are missing from directory and there are new ones, check if they've been renamed using hash
+6.  Selection feature to add/remove tags from multiple pics at once
+
+For after important stuff is done:
+
 10. Design! Needs animations for look cleaner
 11. Built-in updater
 12. If all else is done and I get no other ideas by now and some people actually would use it -> Cloud functionality!
@@ -36,7 +37,8 @@ TODO:
 Done: Use folders instead of importing pictures, tag them automatically based on subfolders
       Use video as thumbnail; play only when on screen
       Context Menu
-      Detail page, mostly
+      Detail page (except clicking on tag to search for it and exlude)
+      Tagging-system
 
 Next thing to do: Extra button and tag listing in detail page
 

@@ -8,30 +8,32 @@ const outclick = require('outclick');
 const moment = require('moment');
 var contextmenuelement;
 var piccount;
+var lastX;
+var menuFunc;
+var canBeOnScreen;
+var dirList;
+var tagsForAutocomplete;
+var picPaths = [];
+var editTagsArray = [];
+var editTagsAlreadyAssigned = [];
+var searchArrayInc = [];
+var searchArrayExc = [];
 var loadnew = true;
 var pictureid = 0;
 var firstRun = true;
 var canLoadMore = true;
-var dirList;
 var xxhashsalt = 4152;
 var sqlalreadysetup = false;
-var canBeOnScreen;
 var lastZ = 0;
-var lastX;
-var menuFunc;
-var picPaths = [];
 var pictureScale = 1;
-var tagsForAutocomplete;
-var editTagsArray = [];
-var editTagsAlreadyAssigned = [];
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
 }
-var db = new sql(appDataFolder + "\\data.sqlite");
 if(fs.existsSync(appDataFolder + "\\data.sqlite")) {
   firstRun = false;
 }
+var db = new sql(appDataFolder + "\\data.sqlite");
 if(!firstRun) {
   var firstR = db.prepare("SELECT count(*) FROM directories").get()["count(*)"];
   if(firstR == 0) {
@@ -106,7 +108,7 @@ function scrollingBottomside(obj, picsPerLine) {
   var i;
   var element;
   var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
-  if(x > lastX && x < pictureid) {
+  if(x > lastX && x <= pictureid) {
     for(i = x - picsPerLine; i < x; i += 1) {
       element = document.getElementById('picture' + i);
       if(element.tagName.toLowerCase() == "video") {
@@ -218,6 +220,7 @@ function closeFileDetails() {
   if(previewedFile.tagName.toLowerCase() == "video") {
     previewedFile.pause();
   }
+  tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   var opa = 1;
   var anim = setInterval(animateCloseDetails, 5);
   function animateCloseDetails() {
@@ -237,9 +240,9 @@ function openDetails(picid) {
   var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
   var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
   if(extension == "mp4" || extension == "webm") {
-    document.getElementById('filepreview').innerHTML = "<video id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
+    document.getElementById('filepreview').innerHTML = "<video id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
   } else {
-    document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
+    document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
   }
   var details = [];
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
@@ -256,14 +259,14 @@ function openDetails(picid) {
     copyLocation(picid);
   };
   for(i = 0; i < tags.length; i += 1) {
-    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" /></div>";
+    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + (picid+1) + "\', this)\" /></div>";
   }
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
   var i;
   for(i = 0; i < details.length; i += 1) {
     document.getElementById('filedetails').innerHTML += details[i];
   }
-  document.getElementById('fileDetailsDetails').innerHTML += "<div class=\"picTagListing picAddTagListing\" onclick=\"openAddTagsDialog(\'" + pic.id + "\')\"><div class=\"picTagText picTagTextAdd\">\+</div></div>";
+  document.getElementById('fileDetailsDetails').innerHTML += "<div id=\"fileDetailsAddTags\" class=\"picTagListing picAddTagListing\" onclick=\"openAddTagsDialog(\'" + pic.id + "\')\"><div class=\"picTagText picTagTextAdd\">\+</div></div>";
   document.getElementById('details').style.display = "block";
   var anim = setInterval(animateOpenDetails, 5);
   var opa = 0;
@@ -275,6 +278,11 @@ function openDetails(picid) {
       document.getElementById('details').style.opacity = opa;
     }
   }
+}
+function removeTag (tagname, picid, element) {
+  console.log(picid);
+  db.prepare('DELETE FROM tags WHERE tag = ? AND id = ?;').run(tagname, picid);
+  removeElement(element.parentNode);
 }
 function openAddTagsDialog(picid) {
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
@@ -288,51 +296,83 @@ function openAddTagsDialog(picid) {
       }
     }
   }
-  document.getElementById('editTagsDialogueOverlay').style.display = "block";
+  document.getElementById('editTagsConfirm').onclick = function() {
+    editTagsConfirm(picid);
+  };
+  document.getElementById('translucentOverlay').style.display = "block";
   document.getElementById('editTagsDialogueArea').style.display = "block";
+  showOverlay();
   var anim = setInterval(animateOpenTagsDialogue, 5);
   var opa = 0;
-  var opa2 = 0;
   function animateOpenTagsDialogue() {
     if(opa >= 1) {
       clearInterval(anim);
     } else {
       opa += 0.05;
-      opa2 += 0.025;
       document.getElementById('editTagsDialogueArea').style.opacity = opa;
-      document.getElementById('editTagsDialogueOverlay').style.opacity = opa2;
     }
   }
+}
+function editTagsConfirm (picid) {
+  var i;
+  for(i = 0; i < editTagsArray.length; i += 1) {
+    db.prepare('INSERT INTO tags (tag, id) VALUES (?, ?);').run(editTagsArray[i], picid);
+    document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\');\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" /></div>");
+  }
+  hideEditTagsDialogue();
 }
 function autocompleteEditTags () {
   var value = document.getElementById('editTagsInput').value;
   var i;
   var tagsToList = "";
-  var x = 0;
   var z;
   var add;
   if(value != "") {
     for(i = 0; i < tagsForAutocomplete.length; i += 1) {
       add = true;
-      if(tagsForAutocomplete[i].tag.substring(0, value.length) == value) {
+      if(tagsForAutocomplete[i].tag.substring(0, value.length).toLowerCase() == value.toLowerCase()) {
         for(z = 0; z < editTagsArray.length; z += 1) {
           if(editTagsArray[z] == tagsForAutocomplete[i].tag) {
             add = false;
           }
         }
         if(add) {
-          tagsToList += "<div id=\"editTagsAutocompleteEntry\" onclick=\"editTagsAddTagToList(\'" + tagsForAutocomplete[i].tag + "\');\"><b>" + value + "</b>" + tagsForAutocomplete[i].tag.substr(value.length) + "</div>";
-          x += 1;
+          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"editTagsAddTagToList(\'" + tagsForAutocomplete[i].tag + "\');\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.substr(value.length) + "</div>";
         }
-      }
-      if(x == 8) {
-        break;
       }
     }
   }
   document.getElementById('editTagsAutocomplete').innerHTML = tagsToList;
 }
+function searchAutocomplete(value) {
+  var i;
+  var tagsToList = "";
+  var z;
+  var add;
+  if(value != "") {
+    for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+      add = true;
+      if(tagsForAutocomplete[i].tag.substring(0, value.length).toLowerCase() == value.toLowerCase()) {
+        for(z = 0; z < searchArrayInc.length; z += 1) {
+          if(searchArrayInc[z] == tagsForAutocomplete[i].tag) {
+            add = false;
+          }
+        }
+        for(z = 0; z < searchArrayExc.length; z += 1) {
+          if(searchArrayExc[z] == tagsForAutocomplete[i].tag) {
+            add = false;
+          }
+        }
+        if(add) {
+          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', false);\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.substring(value.length) + "</div>";
+        }
+      }
+    }
+  }
+  document.getElementById('searchAutocomplete').innerHTML = tagsToList;
+}
 function hideEditTagsAutocomplete() {
+  document.getElementById('editTagsAutocomplete').style.backgroundColor = "";
   var childarray = Array.from(document.getElementById('editTagsAutocomplete').childNodes);
   var i;
   for(i = 0; i < childarray.length; i += 1) {
@@ -340,22 +380,46 @@ function hideEditTagsAutocomplete() {
     childarray[i].style.display = "none";
   }
 }
+function hideSearchAutocomplete() {
+  document.getElementById('searchAutocomplete').style.backgroundColor = "";
+  var childarray = Array.from(document.getElementById('searchAutocomplete').childNodes);
+  var i;
+  for(i = 0; i < childarray.length; i += 1) {
+    childarray[i].style.backgroundColor = "";
+    childarray[i].style.display = "none";
+  }
+}
+function addSearchTag(tag, exclude) {
+  document.getElementById('searchbar').value = "";
+  var classname;
+  var element;
+  if(!exclude) {
+    searchArrayInc.push(tag);
+    classname = "includetag";
+    element = document.getElementById('searchIncludeTags');
+  } else {
+    searchArrayExc.push(tag);
+    classname = "excludetag";
+    element = document.getElementById('searchExcludeTags');
+  }
+  element.innerHTML += "<div class=\"tag " + classname + "\">" + tag + "</div>";
+}
 function editTagsAddTagToList (tagname) {
   var i;
   var add = true;
   var z;
   for(i = 0; i < editTagsArray.length; i += 1) {
-    if(tagname == editTagsArray[i]) {
+    if(tagname.toLowerCase() == editTagsArray[i]) {
       add = false;
     }
   }
   for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
-    if(tagname == editTagsAlreadyAssigned[z].tag) {
+    if(tagname.toLowerCase() == editTagsAlreadyAssigned[z].tag) {
       add = false;
     }
   }
   if(add) {
-    editTagsArray.push(tagname);
+    editTagsArray.push(tagname.toLowerCase());
     document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.png\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
     document.getElementById('editTagsInput').value = "";
   }
@@ -372,22 +436,45 @@ function editTagsRemoveTag (tag, elm) {
 function hideEditTagsDialogue() {
   var anim = setInterval(animateCloseTagsDialogue, 5);
   var opa = 1;
-  var opa2 = 0.5;
+  hideOverlay();
   function animateCloseTagsDialogue() {
     if(opa <= 0) {
-      document.getElementById('editTagsDialogueOverlay').style.display = "none";
       document.getElementById('editTagsDialogueArea').style.display = "none";
       clearInterval(anim);
     } else {
       opa -= 0.05;
-      opa2 -= 0.025;
-      document.getElementById('editTagsDialogueOverlay').style.opacity = opa2;
       document.getElementById('editTagsDialogueArea').style.opacity = opa;
     }
   }
   document.getElementById('editTagsInput').value = "";
   editTagsArray = [];
   document.getElementById('editTagsListing').innerHTML = "";
+}
+function showOverlay() {
+  var anim = setInterval(animateShowOverlay, 5);
+  var opa = 0;
+  document.getElementById('translucentOverlay').style.display = "block";
+  function animateShowOverlay() {
+    if(opa < 0.5) {
+      opa += 0.025;
+      document.getElementById('translucentOverlay').style.opacity = opa;
+    } else {
+      clearInterval(anim);
+    }
+  }
+}
+function hideOverlay() {
+  var anim = setInterval(animateHideOverlay, 5);
+  var opa = 0.5;
+  function animateHideOverlay() {
+    if(opa > 0) {
+      opa -= 0.025;
+      document.getElementById('translucentOverlay').style.opacity = opa;
+    } else {
+      clearInterval(anim);
+    }
+  }
+  document.getElementById('translucentOverlay').style.display = "none";
 }
 function loadMorePictures() {
   if(canLoadMore) {
@@ -421,6 +508,7 @@ function loadMorePictures() {
   }
 }
 function loadPictures() {
+  tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   var mainHeight = document.getElementById("mainpagecontent").clientHeight;
   var mainWidth = document.getElementById("mainpagecontent").clientWidth;
   var picAmount = 3*(Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
@@ -562,7 +650,7 @@ function addFolder(directory, sub, tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
                 tags = directories[z].split("\\");
                 for(o = 0; o < tags.length; o += 1) {
-                  db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(id.id, tags[o]);
+                  db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(id.id, tags[o].toLowerCase());
                 }
               }
             }

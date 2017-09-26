@@ -102,7 +102,6 @@ html,body {
   height: 20px;
   padding-top: 3px;
   font-size: 0.9em;
-  cursor: pointer;
   margin-right: 5px;
 }
 .includetag {
@@ -319,7 +318,7 @@ html,body {
   display: none;
   opacity: 0;
 }
-#editTagsDialogueOverlay {
+#translucentOverlay {
   height: calc(100% - 90px);
   width: calc(100% - 20px);
   position: fixed;
@@ -330,7 +329,7 @@ html,body {
   display: none;
   opacity: 0;
 }
-#editTagsDialogueArea {
+.overlayArea {
   height: calc(100% - 90px);
   width: calc(100% - 20px);
   position: fixed;
@@ -339,7 +338,7 @@ html,body {
   opacity: 0;
   display: none;
 }
-#editTagsDialogueWrapper {
+.popUpDialogueWrapper {
   min-height: 100px;
   width: 281px;
   background-color: #1f1f1f;
@@ -350,7 +349,7 @@ html,body {
   -webkit-transform: translate(-50%, -50%);
   border: 1px solid black;
 }
-#editTagsDialogue {
+.popUpDialogue {
   min-height: 80px;
   width: 241px;
   position: relative;
@@ -447,20 +446,35 @@ html,body {
   position: absolute;
   top: 28px;
   left: 8px;
-  z-index: 1;
-  background-color: #3b3b3b;
-  color: white;
 }
-#editTagsAutocompleteEntry {
-  width: 170px;
+#searchAutocomplete {
+  position: absolute;
+  width: 140px;
+  top: 25px;
+  left: 5px;
+}
+.autocomplete {
+  z-index: 1;
+  color: white;
+  background-color: #3b3b3b;
+  max-height: 156px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+.inlineblock {
+  display: inline-block;
+}
+.autocompleteEntry {
   overflow: hidden;
   padding: 5px;
   -webkit-transition-duration: 0.3s;
   -webkit-transition-property: background-color;
   font-size: 0.9em;
   cursor: pointer;
+  background-color: #3b3b3b;
+  margin: 0;
 }
-#editTagsAutocompleteEntry:hover {
+.autocompleteEntry:hover {
   background-color: #303030;
 }
 #filepreview {

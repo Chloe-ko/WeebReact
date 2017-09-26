@@ -4,8 +4,6 @@ const url = require ('url');
 
 let win
 
-var isMaximized;
-
 function createWindow() {
   win = new BrowserWindow({width: 1100, height: 700, frame: false, minWidth: 910, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false});
   win.loadURL(url.format({
@@ -26,7 +24,6 @@ function createWindow() {
   });
   win.webContents.openDevTools();
 }
-
 app.on('ready', createWindow);
 ipcMain.on('ondragstart', (event,filePath) => {
   event.sender.startDrag({

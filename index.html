@@ -22,8 +22,11 @@
         </div>
         <div id="options">
           <div id="tagsearch">
-            <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder='';" onblur="this.placeholder='Search'" />
-            <div class="includetag tag" id="test">Tag1</div><div class="includetag tag">Tag2</div><div class="excludetag tag">Tag3</div>
+            <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder=''; searchAutocomplete(this.value);" onblur="this.placeholder='Search'; setTimeout(function() {hideSearchAutocomplete();}, 100);" oninput="searchAutocomplete(this.value);" />
+            <div id="searchAutocomplete" class="autocomplete"></div>
+            <div id="searchTagWrapper" class="inlineblock">
+              <div id="searchIncludeTags" class="inlineblock"></div><div id="searchExcludeTags" class="inlineblock"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -48,14 +51,14 @@
               </div>
             </div>
           </div>
-          <div id="editTagsDialogueOverlay">
+          <div id="translucentOverlay">
           </div>
-          <div id="editTagsDialogueArea">
-            <div id="editTagsDialogueWrapper">
-              <div id="editTagsDialogue">
-                <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onblur="setTimeout(function() {hideEditTagsAutocomplete();}, 100);" onfocus="autocompleteEditTags();" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value);" class="editTagsButtons">Add</button>
+          <div id="editTagsDialogueArea" class="overlayArea">
+            <div id="editTagsDialogueWrapper" class="popUpDialogueWrapper">
+              <div id="editTagsDialogue" class="popUpDialogue">
+                <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onblur="setTimeout(function() {hideEditTagsAutocomplete();}, 100);" onfocus="autocompleteEditTags();" onkeypress="if(event.keyCode == 13) {editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase()); hideEditTagsAutocomplete();}" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase());" class="editTagsButtons">Add</button>
                 <div id="editTagsListing"></div>
-                <div id="editTagsAutocomplete"></div>
+                <div id="editTagsAutocomplete" class="autocomplete"></div>
               </div>
               <img src="img/close.png" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">
               <button id="editTagsConfirm" class="editTagsButtons">Confirm</button>
