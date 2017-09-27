@@ -567,7 +567,6 @@ function loadPictures() {
   var mainWidth = document.getElementById("mainpagecontent").clientWidth;
   var picAmount = 3*(Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
   var extension;
-  console.log(picAmount);
   if((searchArrayInc.length > 0 && searchArrayExc.length > 0) || (searchArrayInc.length > 0 && searchArrayExc.length == 0)) {
     var queryadd = "";
     var i;
