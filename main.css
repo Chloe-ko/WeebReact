@@ -103,6 +103,7 @@ html,body {
   padding-top: 3px;
   font-size: 0.9em;
   margin-right: 5px;
+  cursor: pointer;
 }
 .includetag {
   background-color: #009e07;
@@ -555,6 +556,20 @@ html,body {
 .tagDeleteButton:hover {
   background-color: #3b3b3b;
 }
+.searchRemoveTag {
+  display: inline-block;
+  cursor: pointer;
+  vertical-align: middle;
+  height: 15px;
+  width: 15px;
+  border-radius: 50%;
+  -webkit-transition-duration: 0.3s;
+  -webkit-transition-property: background-color;
+  transform: translateY(-1px);
+}
+.searchRemoveTag:hover {
+  background-color: #007005;
+}
 #mainpageoverlay {
   position: fixed;
   height: 100%;
@@ -585,12 +600,6 @@ html,body {
   line-height: 200px;
   text-align: center;
   margin: 5px;
-}
-#picloader {
-  margin: auto;
-  height: 75px;
-  width: 75px;
-  overflow: hidden;
 }
 #options {
   height: 68px;

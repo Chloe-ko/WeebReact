@@ -13,7 +13,9 @@ var menuFunc;
 var canBeOnScreen;
 var dirList;
 var tagsForAutocomplete;
-var picPaths = [];
+var picPaths;
+var pictureidarray;
+var pictures;
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
@@ -21,7 +23,7 @@ var searchArrayExc = [];
 var loadnew = true;
 var pictureid = 0;
 var firstRun = true;
-var canLoadMore = true;
+var canLoadMore;
 var xxhashsalt = 4152;
 var sqlalreadysetup = false;
 var lastZ = 0;
@@ -41,10 +43,11 @@ if(!firstRun) {
     sqlalreadysetup = true;
   }
 }
-function countPics(tags) {
-  if(tags == undefined) {
-    piccount = db.prepare("SELECT count(*) FROM pictures").get()["count(*)"];
-  }
+function countPics() {
+  piccount = pictures.length;
+  setContainerheight();
+}
+function setContainerheight () {
   document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*210)))*(pictureScale*210) + "px";
 }
 function init() {
@@ -102,7 +105,7 @@ function scrollFunctions() {
   if(document.getElementById('contextmenu').style.display == "block") {
     hideContextMenu(contextmenuelement);
   }
-  countPics();
+  setContainerheight();
 }
 function scrollingBottomside(obj, picsPerLine) {
   var i;
@@ -182,7 +185,7 @@ function copyLocation(id) {
 function showContextMenu(event, el, picid) {
   var contextmenu = document.getElementById('contextmenu');
   contextmenuelement = el;
-  contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + ");\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + ");\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
+  contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + "); hideContextMenu(this.parentNode.parentNode);\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
   var cursorPosition = getCursorPosition(event);
   contextmenu.style.display = "block";
   if(document.getElementById('content').clientWidth - cursorPosition[0] < contextmenu.clientWidth) {
@@ -195,8 +198,8 @@ function showContextMenu(event, el, picid) {
   } else {
     contextmenu.style.top = cursorPosition[1] + "px";
   }
-  menuFunc = el.addEventListener('outclick', function(e) {
-    hideContextMenu(el);
+  menuFunc = contextmenu.addEventListener('outclick', function(e) {
+    hideContextMenu(contextmenu);
   });
 }
 function hideContextMenu(el) {
@@ -235,7 +238,7 @@ function closeFileDetails() {
   }
 }
 function openDetails(picid) {
-  var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(picid+1);
+  var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(pictureidarray[picid]);
   var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
   var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
   var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
@@ -249,7 +252,7 @@ function openDetails(picid) {
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment.unix(pic.timeAdded).format("DD/MM/YYYY") + "</div></div></div><br /><br />");
-  var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid+1);
+  var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(pictureidarray[picid]);
   var tagHtml = "";
   var i;
   document.getElementById('detailsShowInFolderButton').onclick = function() {
@@ -259,7 +262,7 @@ function openDetails(picid) {
     copyLocation(picid);
   };
   for(i = 0; i < tags.length; i += 1) {
-    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + (picid+1) + "\', this)\" /></div>";
+    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
   }
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
   var i;
@@ -280,7 +283,6 @@ function openDetails(picid) {
   }
 }
 function removeTag (tagname, picid, element) {
-  console.log(picid);
   db.prepare('DELETE FROM tags WHERE tag = ? AND id = ?;').run(tagname, picid);
   removeElement(element.parentNode);
 }
@@ -393,16 +395,69 @@ function addSearchTag(tag, exclude) {
   document.getElementById('searchbar').value = "";
   var classname;
   var element;
+  var removeExclude;
   if(!exclude) {
     searchArrayInc.push(tag);
     classname = "includetag";
     element = document.getElementById('searchIncludeTags');
+    removeExclude = "false";
   } else {
     searchArrayExc.push(tag);
     classname = "excludetag";
     element = document.getElementById('searchExcludeTags');
+    removeExclude = "true";
   }
-  element.innerHTML += "<div class=\"tag " + classname + "\">" + tag + "</div>";
+  element.innerHTML += "<div class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
+  loadPictures();
+}
+function removeSearchTag(tag, exclude, elm) {
+  var i;
+  if(!exclude) {
+    for(i = 0; i < searchArrayInc.length; i += 1) {
+      if(searchArrayInc[i] == tag) {
+        searchArrayInc.splice(i, 1);
+      }
+    }
+  } else {
+    for(i = 0; i < searchArrayExc.length; i += 1) {
+      if(searchArrayExc[i] == tag) {
+        searchArrayExc.splice(i, 1);
+      }
+    }
+  }
+  removeElement(elm.parentNode);
+  loadPictures();
+}
+function switchIncludeExclude(tag, exclude, elm) {
+  var i;
+  var element;
+  var classname;
+  var removeExclude;
+  if(!exclude) {
+    for(i = 0; i < searchArrayInc.length; i += 1) {
+      if(searchArrayInc[i] == tag) {
+        searchArrayInc.splice(i, 1);
+        searchArrayExc.push(tag);
+        removeElement(elm.parentNode);
+        element = document.getElementById('searchExcludeTags');
+        classname = "excludetag";
+        removeExclude = "true";
+      }
+    }
+  } else {
+    for(i = 0; i < searchArrayExc.length; i += 1) {
+      if(searchArrayExc[i] == tag) {
+        searchArrayExc.splice(i, 1);
+        searchArrayInc.push(tag);
+        removeElement(elm.parentNode);
+        element = document.getElementById('searchIncludeTags');
+        classname = "includetag";
+        removeExclude = "false";
+      }
+    }
+  }
+  element.innerHTML += "<div class=\"tag " + classname + "\"><div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
+  loadPictures();
 }
 function editTagsAddTagToList (tagname) {
   var i;
@@ -485,12 +540,8 @@ function loadMorePictures() {
       picAmount = piccount - pictureid;
       canLoadMore = false;
     }
-    var extension;
-    var picPath;
-    var picFileName;
-    var pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC LIMIT ? OFFSET ?').all(picAmount, pictureid);
-    var i;
-    for(i = 0; i < picAmount; i+=1) {
+    var picState = pictureid + picAmount;
+    for(i = pictureid; i < picState; i+=1) {
       picPath = pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
@@ -500,26 +551,83 @@ function loadMorePictures() {
         document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
       }
       picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
+      pictureidarray.push(pictures[i].id);
       pictureid += 1;
-    }
-    if(!canLoadMore) {
-      removeElementById('picloader');
     }
   }
 }
 function loadPictures() {
+  document.getElementById("mainpagecontent").scrollTop = 0;
+  picPaths = [];
+  pictureidarray = [];
+  pictureid = 0;
+  document.getElementById('picturecontainer').innerHTML = "";
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   var mainHeight = document.getElementById("mainpagecontent").clientHeight;
   var mainWidth = document.getElementById("mainpagecontent").clientWidth;
   var picAmount = 3*(Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
   var extension;
+  console.log(picAmount);
+  if((searchArrayInc.length > 0 && searchArrayExc.length > 0) || (searchArrayInc.length > 0 && searchArrayExc.length == 0)) {
+    var queryadd = "";
+    var i;
+    var query;
+    var excludePictures;
+    for(i = 0; i < searchArrayInc.length; i += 1) {
+      queryadd += "tags.tag = ?";
+      if(i+1 < searchArrayInc.length) {
+        queryadd += " OR ";
+      }
+    }
+    query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
+    pictures = db.prepare(query).all(searchArrayInc, searchArrayInc.length);
+    if(searchArrayExc.length > 0) {
+      queryadd = "";
+      for(i = 0; i < searchArrayExc.length; i += 1) {
+        queryadd += "tags.tag = ?";
+        if(i+1 < searchArrayExc.length) {
+          queryadd += " OR ";
+        }
+      }
+      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
+      excludePictures = db.prepare(query).all(searchArrayExc, searchArrayExc.length);
+      var x;
+      for(i = excludePictures.length-1; i >= 0; i -= 1) {
+        for(x = pictures.length-1; x >= 0; x -= 1) {
+          if(pictures[x].id == excludePictures[i].id) {
+            pictures.splice(x, 1);
+          }
+        }
+      }
+    }
+  } else {
+    pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC;').all();
+    if(searchArrayExc.length > 0) {
+      queryadd = "";
+      for(i = 0; i < searchArrayExc.length; i += 1) {
+        queryadd += "tags.tag = ?";
+        if(i+1 < searchArrayExc.length) {
+          queryadd += " OR ";
+        }
+      }
+      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
+      excludePictures = db.prepare(query).all(searchArrayExc, searchArrayExc.length);
+      var x;
+      for(i = excludePictures.length-1; i >= 0; i -= 1) {
+        for(x = pictures.length-1; x >= 0; x -= 1) {
+          if(pictures[x].id == excludePictures[i].id) {
+            pictures.splice(x, 1);
+          }
+        }
+      }
+    }
+  }
   countPics();
+  canLoadMore = true;
   if(piccount < picAmount) {
     picAmount = piccount;
     canLoadMore = false;
   }
-  var pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC LIMIT ?').all(picAmount);
-  var i;
   var picPath;
   var picFileName;
   for(i = 0; i < picAmount; i+=1) {
@@ -532,13 +640,15 @@ function loadPictures() {
       document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
     }
     picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
+    pictureidarray.push(pictures[i].id);
     pictureid += 1;
   }
-  if(canLoadMore) {
-    document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"><div class=\"loader\"></div></div>";
-  }
+  document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"></div>";
   var picAmountShown = Math.floor(mainWidth/(pictureScale*210))*Math.ceil(mainHeight/(pictureScale*210));
   var element;
+  if(picAmount < picAmountShown) {
+    picAmountShown = picAmount;
+  }
   for(i = 0; i < picAmountShown; i += 1) {
     element = document.getElementById("picture" + i);
     if(element.tagName.toLowerCase() == "video") {
@@ -546,6 +656,13 @@ function loadPictures() {
     }
   }
   lastX = picAmountShown;
+  lastZ = 0;
+}
+function returnMatching(array1, array2) {
+  return array1.filter(function(n){ return array2.indexOf(n)>-1?n:false;});
+}
+function returnDifferents(array1, array2) {
+  return array1.filter(function(n){ return array2.indexOf(n)>-1?false:n;});
 }
 function checkPictures(directory) {
   if(directory != undefined) {
