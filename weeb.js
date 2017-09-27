@@ -112,6 +112,7 @@ function scrollingBottomside(obj, picsPerLine) {
   var element;
   var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
   if(x > lastX && x <= pictureid) {
+    console.log("test");
     for(i = x - picsPerLine; i < x; i += 1) {
       element = document.getElementById('picture' + i);
       if(element.tagName.toLowerCase() == "video") {
@@ -127,11 +128,14 @@ function scrollingBottomside(obj, picsPerLine) {
       }
     }
     lastX = x;
-  } else if (x > lastX && x > pictureid && pictureid == piccount) {
+  } else if (x > lastX && x > pictureid && pictureid == piccount && lastX < pictureid) {
+    console.log("test");
     var picsToPlay = picsPerLine - (x - pictureid);
     var p;
     for(i = 0; i < picsToPlay; i += 1) {
       p = lastX + i;
+      console.log("lastX = " + lastX);
+      console.log(p);
       element = document.getElementById('picture' + p);
       if(element.tagName.toLowerCase() == "video") {
         element.play();
