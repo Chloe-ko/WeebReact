@@ -82,7 +82,7 @@ function init() {
     document.getElementById('setup').style.display = 'block';
     if(!sqlalreadysetup) {
       db.pragma('journal_mode = WAL');
-      db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, hash text unique, excluded integer, timeAdded integer, unique(path, filename));').run();
+      db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, rating integer, hash text unique, excluded integer, timeAdded integer, unique(path, filename));').run();
       db.prepare('CREATE TABLE tags (tag text, id int, unique(tag, id));').run();
       db.prepare('CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);').run();
     }
@@ -114,7 +114,6 @@ function scrollingBottomside(obj, picsPerLine) {
   var element;
   var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
   if(x > lastX && x <= pictureid) {
-    console.log("test");
     for(i = x - picsPerLine; i < x; i += 1) {
       element = document.getElementById('picture' + i);
       if(element.tagName.toLowerCase() == "video") {
@@ -131,13 +130,10 @@ function scrollingBottomside(obj, picsPerLine) {
     }
     lastX = x;
   } else if (x > lastX && x > pictureid && pictureid == piccount && lastX < pictureid) {
-    console.log("test");
     var picsToPlay = picsPerLine - (x - pictureid);
     var p;
     for(i = 0; i < picsToPlay; i += 1) {
       p = lastX + i;
-      console.log("lastX = " + lastX);
-      console.log(p);
       element = document.getElementById('picture' + p);
       if(element.tagName.toLowerCase() == "video") {
         element.play();
@@ -320,6 +316,7 @@ function openAddTagsDialog(picid) {
       document.getElementById('editTagsDialogueArea').style.opacity = opa;
     }
   }
+  document.getElementById('editTagsInput').focus();
 }
 function editTagsConfirm (picid) {
   var i;
@@ -607,8 +604,8 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
-      excludePictures = db.prepare(query).all(searchArrayExc, searchArrayExc.length);
+      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id ORDER BY pictures.id ASC;';
+      excludePictures = db.prepare(query).all(searchArrayExc);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
         for(x = pictures.length-1; x >= 0; x -= 1) {
@@ -628,8 +625,8 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
-      excludePictures = db.prepare(query).all(searchArrayExc, searchArrayExc.length);
+      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id ORDER BY pictures.id ASC;';
+      excludePictures = db.prepare(query).all(searchArrayExc);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
         for(x = pictures.length-1; x >= 0; x -= 1) {
@@ -802,7 +799,7 @@ function addFolder(directory, sub, tag) {
         filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
         checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
         if(checkduplicate == 0) {
-          db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
+          db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating) VALUES (?,?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60), 0);
           x += 1;
         }
       }
@@ -822,7 +819,6 @@ function addFolder(directory, sub, tag) {
       document.getElementById('greyboxr').style.backgroundColor = "#1f1f1f";
       loadPictures();
     });
-    countPics();
   }, 50);
 }
 function getFiles(dir){

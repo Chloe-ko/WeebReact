@@ -23,7 +23,7 @@
         <div id="options">
           <div id="tagsearch">
             <div id="autoSearchWrapper" class="inlineblock">
-              <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder=''; searchAutocomplete(this.value);" onblur="this.placeholder='Search';" oninput="searchAutocomplete(this.value);" />
+              <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder=''; searchAutocomplete(this.value);" onblur="this.placeholder='Search';" oninput="searchAutocomplete(this.value);" onkeypress="if(event.keyCode == 13) {addSearchTag(document.getElementById('searchbar').value.toLowerCase(), false); hideSearchAutocomplete();}" />
             </div>
             <div id="searchAutocomplete" class="autocomplete"></div>
             <div id="searchTagWrapper" class="inlineblock">
