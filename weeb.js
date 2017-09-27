@@ -16,6 +16,8 @@ var tagsForAutocomplete;
 var picPaths;
 var pictureidarray;
 var pictures;
+var autoSearchHide;
+var autoEditHide;
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
@@ -349,12 +351,26 @@ function autocompleteEditTags () {
     }
   }
   document.getElementById('editTagsAutocomplete').innerHTML = tagsToList;
+  autoEditHide = document.getElementById('editTagsAutoWrapper').addEventListener('outclick', function (e) {
+    hideEditTagsAutocomplete();
+  });
+}
+function hideEditTagsAutocomplete() {
+  document.getElementById('editTagsAutocomplete').style.backgroundColor = "";
+  var childarray = Array.from(document.getElementById('editTagsAutocomplete').childNodes);
+  var i;
+  for(i = 0; i < childarray.length; i += 1) {
+    childarray[i].style.backgroundColor = "";
+    childarray[i].style.display = "none";
+  }
+  document.getElementById('editTagsAutoWrapper').removeEventListener('outclick', autoEditHide);
 }
 function searchAutocomplete(value) {
   var i;
   var tagsToList = "";
   var z;
   var add;
+  var elm = document.getElementById('searchAutocomplete');
   if(value != "") {
     for(i = 0; i < tagsForAutocomplete.length; i += 1) {
       add = true;
@@ -375,25 +391,22 @@ function searchAutocomplete(value) {
       }
     }
   }
-  document.getElementById('searchAutocomplete').innerHTML = tagsToList;
-}
-function hideEditTagsAutocomplete() {
-  document.getElementById('editTagsAutocomplete').style.backgroundColor = "";
-  var childarray = Array.from(document.getElementById('editTagsAutocomplete').childNodes);
-  var i;
-  for(i = 0; i < childarray.length; i += 1) {
-    childarray[i].style.backgroundColor = "";
-    childarray[i].style.display = "none";
-  }
+  elm.innerHTML = tagsToList;
+  var autoSearchOut = document.getElementById('autoSearchWrapper');
+  autoSearchHide = autoSearchOut.addEventListener('outclick', function (e) {
+    hideSearchAutocomplete();
+  });
 }
 function hideSearchAutocomplete() {
-  document.getElementById('searchAutocomplete').style.backgroundColor = "";
-  var childarray = Array.from(document.getElementById('searchAutocomplete').childNodes);
+  var elm = document.getElementById('searchAutocomplete');
+  elm.style.backgroundColor = "";
+  var childarray = Array.from(elm.childNodes);
   var i;
   for(i = 0; i < childarray.length; i += 1) {
     childarray[i].style.backgroundColor = "";
     childarray[i].style.display = "none";
   }
+  document.getElementById('autoSearchWrapper').removeEventListener('outclick', autoSearchHide);
 }
 function addSearchTag(tag, exclude) {
   document.getElementById('searchbar').value = "";
@@ -413,6 +426,7 @@ function addSearchTag(tag, exclude) {
   }
   element.innerHTML += "<div class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
   loadPictures();
+  hideSearchAutocomplete();
 }
 function removeSearchTag(tag, exclude, elm) {
   var i;
@@ -482,6 +496,7 @@ function editTagsAddTagToList (tagname) {
     document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.png\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
     document.getElementById('editTagsInput').value = "";
   }
+  hideEditTagsAutocomplete();
 }
 function editTagsRemoveTag (tag, elm) {
   var i;
