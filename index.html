@@ -23,11 +23,16 @@
         <div id="options">
           <div id="tagsearch">
             <div id="autoSearchWrapper" class="inlineblock">
-              <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder=''; searchAutocomplete(this.value);" onblur="this.placeholder='Search';" oninput="searchAutocomplete(this.value);" onkeypress="if(event.keyCode == 13) {addSearchTag(document.getElementById('searchbar').value.toLowerCase(), false); hideSearchAutocomplete();}" />
+              <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder=''; searchAutocomplete(this.value);" onblur="this.placeholder='Search';" oninput="searchAutocomplete(this.value);" onkeypress="if(event.keyCode == 13) {if(this.value != '') {addSearchTag(document.getElementById('searchbar').value.toLowerCase(), false);}}" />
+              <div id="searchAutocomplete" class="autocomplete"></div>
             </div>
-            <div id="searchAutocomplete" class="autocomplete"></div>
-            <div id="searchTagWrapper" class="inlineblock">
-              <div id="searchIncludeTags" class="inlineblock"></div><div id="searchExcludeTags" class="inlineblock"></div>
+            <div id="searchTagWrapper">
+              <div id="searchTags">
+              </div>
+            </div>
+            <div id="expandTagList" onclick="expandTagList();">
+            </div>
+            <div id="clearSearchTags" onclick="clearSearchTags();">
             </div>
           </div>
         </div>
@@ -60,7 +65,7 @@
               <div id="editTagsDialogue" class="popUpDialogue">
                 <div id="editTagsAutoWrapper">
                   <div id="editTagsAutocomplete" class="autocomplete"></div>
-                  <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onfocus="autocompleteEditTags();" onkeypress="if(event.keyCode == 13) {editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase()); hideEditTagsAutocomplete();}" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase());" class="editTagsButtons">Add</button>
+                  <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onfocus="autocompleteEditTags();" onkeypress="if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());}}" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase());" class="editTagsButtons">Add</button>
                 </div>
                 <div id="editTagsListing"></div>
               </div>

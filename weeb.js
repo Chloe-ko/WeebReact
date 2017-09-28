@@ -18,6 +18,7 @@ var pictureidarray;
 var pictures;
 var autoSearchHide;
 var autoEditHide;
+var expandAnim;
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
@@ -29,7 +30,9 @@ var canLoadMore;
 var xxhashsalt = 4152;
 var sqlalreadysetup = false;
 var lastZ = 0;
+var tagListExpanded = false;
 var pictureScale = 1;
+var clearTagButtonShown = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
@@ -264,7 +267,7 @@ function openDetails(picid) {
     copyLocation(picid);
   };
   for(i = 0; i < tags.length; i += 1) {
-    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\');\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
+    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
   }
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
   var i;
@@ -322,7 +325,7 @@ function editTagsConfirm (picid) {
   var i;
   for(i = 0; i < editTagsArray.length; i += 1) {
     db.prepare('INSERT INTO tags (tag, id) VALUES (?, ?);').run(editTagsArray[i], picid);
-    document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\');\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" /></div>");
+    document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" /></div>");
   }
   hideEditTagsDialogue();
 }
@@ -362,6 +365,31 @@ function hideEditTagsAutocomplete() {
   }
   document.getElementById('editTagsAutoWrapper').removeEventListener('outclick', autoEditHide);
 }
+function expandTagList() {
+  clearInterval(expandAnim);
+  expandAnim = setInterval(animateExpandTagList, 5);
+  var element = document.getElementById('searchTagWrapper');
+  var element2 = document.getElementById('searchTags');
+  function animateExpandTagList() {
+    if(tagListExpanded) {
+      document.getElementById('expandTagList').classList.remove('rotate180');
+      if(element.clientHeight > 33) {
+        element.style.height = (element.clientHeight - 1) + "px";
+      } else {
+        clearInterval(expandAnim);
+        tagListExpanded = false;
+      }
+    } else {
+      document.getElementById('expandTagList').classList.add('rotate180');
+      if(element.clientHeight <= element2.clientHeight) {
+        element.style.height = (element.clientHeight + 1) + "px";
+      } else {
+        clearInterval(expandAnim);
+        tagListExpanded = true;
+      }
+    }
+  }
+}
 function searchAutocomplete(value) {
   var i;
   var tagsToList = "";
@@ -383,7 +411,7 @@ function searchAutocomplete(value) {
           }
         }
         if(add) {
-          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', false);\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.substring(value.length) + "</div>";
+          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', false);\" oncontextmenu=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', true);\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.substring(value.length) + "</div>";
         }
       }
     }
@@ -410,20 +438,55 @@ function addSearchTag(tag, exclude) {
   var classname;
   var element;
   var removeExclude;
-  if(!exclude) {
+  var i;
+  var add = true;
+  for(i = 0; i < searchArrayInc.length; i += 1) {
+    if(searchArrayInc[i] == tag) {
+      add = false;
+    }
+  }
+  for(i = 0; i < searchArrayExc.length; i += 1) {
+    if(searchArrayExc[i] == tag) {
+      add = false;
+    }
+  }
+  element = document.getElementById('searchTags');
+  if(!exclude && add) {
     searchArrayInc.push(tag);
     classname = "includetag";
-    element = document.getElementById('searchIncludeTags');
     removeExclude = "false";
-  } else {
+  } else if (add) {
     searchArrayExc.push(tag);
     classname = "excludetag";
-    element = document.getElementById('searchExcludeTags');
     removeExclude = "true";
   }
-  element.innerHTML += "<div class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
-  loadPictures();
-  hideSearchAutocomplete();
+  if(add) {
+    element.innerHTML += "<div id=\"searchTagName" + tag + "\" class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
+    loadPictures();
+    hideSearchAutocomplete();
+  }
+  if(document.getElementById('searchTags').clientHeight > 33) {
+    document.getElementById('expandTagList').style.display = "block";
+  } else {
+    document.getElementById('expandTagList').style.display = "none";
+  }
+  if(tagListExpanded && document.getElementById('searchTags').clientHeight > document.getElementById('searchTagWrapper').clientHeight) {
+    clearInterval(expandAnim);
+    expandAnim = setInterval(animateExpandTagList, 5);
+    var element = document.getElementById('searchTagWrapper');
+    var element2 = document.getElementById('searchTags');
+    function animateExpandTagList() {
+      if(element.clientHeight <= element2.clientHeight) {
+        element.style.height = (element.clientHeight + 1) + "px";
+      } else {
+        clearInterval(expandAnim);
+      }
+    }
+  }
+  if(!clearTagButtonShown) {
+    document.getElementById('clearSearchTags').style.display = "block";
+    clearTagButtonShown = true;
+  }
 }
 function removeSearchTag(tag, exclude, elm) {
   var i;
@@ -440,8 +503,55 @@ function removeSearchTag(tag, exclude, elm) {
       }
     }
   }
+  if(document.getElementById('searchTags').clientHeight > document.getElementById('searchTagWrapper').clientHeight && !tagListExpanded) {
+    document.getElementById('expandTagList').style.display = "none";
+  }
   removeElement(elm.parentNode);
+  if(document.getElementById('searchTags').clientHeight < document.getElementById('searchTagWrapper').clientHeight && tagListExpanded) {
+    clearInterval(expandAnim);
+    expandAnim = setInterval(animateExpandTagList, 5);
+    var element = document.getElementById('searchTagWrapper');
+    var element2 = document.getElementById('searchTags');
+    function animateExpandTagList() {
+      if(element.clientHeight > element2.clientHeight) {
+        element.style.height = (element.clientHeight - 1) + "px";
+      } else {
+        clearInterval(expandAnim);
+      }
+    }
+    if(element2.clientHeight == 33) {
+    document.getElementById('expandTagList').style.display = "none";
+    document.getElementById('expandTagList').classList.remove('rotate180');
+    tagListExpanded = false;
+    }
+  }
+  if(searchArrayInc.length == 0 && searchArrayExc.length == 0) {
+    document.getElementById('clearSearchTags').style.display = "none";
+    clearTagButtonShown = false;
+  }
   loadPictures();
+}
+function clearSearchTags() {
+  searchArrayInc = [];
+  searchArrayExc = [];
+  document.getElementById('searchTags').innerHTML = "";
+  document.getElementById('clearSearchTags').style.display = "none";
+  clearTagButtonShown = false;
+  document.getElementById('expandTagList').style.display = "none";
+  if(tagListExpanded) {
+    document.getElementById('expandTagList').classList.remove('rotate180');
+    clearInterval(expandAnim);
+    expandAnim = setInterval(animateExpandTagList, 5);
+    var element = document.getElementById('searchTagWrapper');
+    function animateExpandTagList() {
+      if(element.clientHeight > 33) {
+        element.style.height = (element.clientHeight - 1) + "px";
+      } else {
+        clearInterval(expandAnim);
+      }
+    }
+  }
+  tagListExpanded = false;
 }
 function switchIncludeExclude(tag, exclude, elm) {
   var i;
@@ -453,9 +563,9 @@ function switchIncludeExclude(tag, exclude, elm) {
       if(searchArrayInc[i] == tag) {
         searchArrayInc.splice(i, 1);
         searchArrayExc.push(tag);
-        removeElement(elm.parentNode);
-        element = document.getElementById('searchExcludeTags');
-        classname = "excludetag";
+        element = document.getElementById('searchTagName' + tag);
+        classadd = "excludetag";
+        classremove = "includetag";
         removeExclude = "true";
       }
     }
@@ -464,14 +574,16 @@ function switchIncludeExclude(tag, exclude, elm) {
       if(searchArrayExc[i] == tag) {
         searchArrayExc.splice(i, 1);
         searchArrayInc.push(tag);
-        removeElement(elm.parentNode);
-        element = document.getElementById('searchIncludeTags');
-        classname = "includetag";
+        element = document.getElementById('searchTagName' + tag);
+        classadd = "includetag";
+        classremove = "excludetag";
         removeExclude = "false";
       }
     }
   }
-  element.innerHTML += "<div class=\"tag " + classname + "\"><div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
+  element.classList.add(classadd);
+  element.classList.remove(classremove);
+  element.innerHTML = "<div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" />";
   loadPictures();
 }
 function editTagsAddTagToList (tagname) {
@@ -583,7 +695,7 @@ function loadPictures() {
   var mainWidth = document.getElementById("mainpagecontent").clientWidth;
   var picAmount = 3*(Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
   var extension;
-  if((searchArrayInc.length > 0 && searchArrayExc.length > 0) || (searchArrayInc.length > 0 && searchArrayExc.length == 0)) {
+  if(searchArrayInc.length > 0) {
     var queryadd = "";
     var i;
     var query;

@@ -77,22 +77,71 @@ html,body {
 .button-glow:hover, .button-glow:focus, .button-glow:active {
   background-color: #373737;
 }
-#searchbar {
+#tagsearch {
+  height: 25px;
+  width: 505px;
+  position: relative;
+  top: 5px;
+  left: 5px;
+}
+#expandTagList {
+  position: absolute;
+  left: 480px;
+  top: 1px;
+  height: 25px;
+  width: 25px;
+  background-color: red;
+  cursor: pointer;
+  display: none;
+  background: url('img/arrow.png');
+  -webkit-transition: -webkit-transform 0.3s;
+}
+.rotate180 {
+  -webkit-transform: rotate(180deg);
+}
+#clearSearchTags {
   display: inline-block;
-  margin-top: 2px;
-  width: 51px;
-  height: 21px;
+  position: absolute;
+  left: 450px;
+  top: 1px;
+  height: 25px;
+  width: 25px;
+  cursor: pointer;
+  background: url('img/close.png');
+  display: none;
+}
+#searchTagWrapper {
+  overflow: hidden;
+  position: absolute;
+  left: 155px;
+  top: -4px;
+  width: 320px;
+  height: 33px;
+  border-radius: 10px;
+  background-color: #1f1f1f;
+  border: 1px solid black;
+}
+#searchTags {
+  padding-top: 5px;
+  padding-right: 35px;
+}
+#autoSearchWrapper {
+  position: absolute;
+  top: 1px;
+  left: 0px;
+}
+#searchbar {
+  width: 130px;
+  height: 25px;
   font-size: 1em;
   border-radius: 5px;
   border: 0;
   outline: none;
   padding-left: 10px;
   padding-right: 10px;
-  -webkit-transition-duration: 0.5s;
-  -webkit-transition-property: width;
-}
-#searchbar:active, #searchbar:focus {
-  width: 130px;
+  position: absolute;
+  top: -1px;
+  left: 0px;
 }
 .tag {
   display: inline-block;
@@ -102,7 +151,8 @@ html,body {
   height: 20px;
   padding-top: 3px;
   font-size: 0.9em;
-  margin-right: 5px;
+  margin-left: 5px;
+  margin-bottom: 5px;
   cursor: pointer;
 }
 .includetag {
@@ -112,13 +162,6 @@ html,body {
 .excludetag {
   background-color: #a00000;
   color: #2f0000;
-}
-#tagsearch {
-  height: 25px;
-  width: 100%;
-  position: absolute;
-  bottom: 10px;
-  left: 5px;
 }
 #title {
   color: white;
@@ -234,18 +277,19 @@ html,body {
 }
 ::-webkit-scrollbar {
     width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    -webkit-box-shadow: 0;
-    border-radius: 0px;
+  -webkit-box-shadow: 0;
+  border-radius: 0px;
   margin-top: 10px;
   margin-bottom: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-    border-radius: 10px;
-    -webkit-box-shadow: 0;
+  border-radius: 10px;
+  -webkit-box-shadow: 0;
   background-color: #1f1f1f;
 }
 #setuploader {
@@ -451,7 +495,7 @@ html,body {
 #searchAutocomplete {
   position: absolute;
   width: 140px;
-  top: 25px;
+  top: 26px;
   left: 5px;
 }
 .autocomplete {
@@ -563,12 +607,13 @@ html,body {
   height: 15px;
   width: 15px;
   border-radius: 50%;
+  margin-left: 2px;
   -webkit-transition-duration: 0.3s;
-  -webkit-transition-property: background-color;
+  -webkit-transition-property: background;
   transform: translateY(-1px);
 }
 .searchRemoveTag:hover {
-  background-color: #007005;
+  background: rgba(100,100,100,0.5);
 }
 #mainpageoverlay {
   position: fixed;
