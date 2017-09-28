@@ -10,7 +10,6 @@ var contextmenuelement;
 var piccount;
 var lastX;
 var menuFunc;
-var canBeOnScreen;
 var dirList;
 var tagsForAutocomplete;
 var picPaths;
@@ -19,6 +18,7 @@ var pictures;
 var autoSearchHide;
 var autoEditHide;
 var expandAnim;
+var dropdownHide;
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
@@ -33,6 +33,7 @@ var lastZ = 0;
 var tagListExpanded = false;
 var pictureScale = 1;
 var clearTagButtonShown = false;
+var sortingDropdownShown = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
@@ -365,9 +366,26 @@ function hideEditTagsAutocomplete() {
   }
   document.getElementById('editTagsAutoWrapper').removeEventListener('outclick', autoEditHide);
 }
+function toggleSortingDropdown () {
+  var elm = document.getElementById('sortingDropdown');
+  var rotatePic = document.getElementById('sortByDropDownImage');
+  if(!sortingDropdownShown) {
+    rotatePic.classList.add('rotate180');
+    elm.classList.add('dropdownDrop');
+    sortingDropdownShown = true;
+    dropdownHide = document.getElementById('sortingDropdownHide').addEventListener('outclick', function(e) {
+      toggleSortingDropdown();
+    });
+  } else {
+    elm.classList.remove('dropdownDrop');
+    rotatePic.classList.remove('rotate180');
+    sortingDropdownShown = false;
+    document.getElementById('sortingDropdownHide').removeEventListener('outclick', dropdownHide);
+  }
+}
 function expandTagList() {
   clearInterval(expandAnim);
-  expandAnim = setInterval(animateExpandTagList, 5);
+  expandAnim = setInterval(animateExpandTagList, 3);
   var element = document.getElementById('searchTagWrapper');
   var element2 = document.getElementById('searchTags');
   function animateExpandTagList() {
@@ -472,7 +490,7 @@ function addSearchTag(tag, exclude) {
   }
   if(tagListExpanded && document.getElementById('searchTags').clientHeight > document.getElementById('searchTagWrapper').clientHeight) {
     clearInterval(expandAnim);
-    expandAnim = setInterval(animateExpandTagList, 5);
+    expandAnim = setInterval(animateExpandTagList, 3);
     var element = document.getElementById('searchTagWrapper');
     var element2 = document.getElementById('searchTags');
     function animateExpandTagList() {
@@ -509,7 +527,7 @@ function removeSearchTag(tag, exclude, elm) {
   removeElement(elm.parentNode);
   if(document.getElementById('searchTags').clientHeight < document.getElementById('searchTagWrapper').clientHeight && tagListExpanded) {
     clearInterval(expandAnim);
-    expandAnim = setInterval(animateExpandTagList, 5);
+    expandAnim = setInterval(animateExpandTagList, 3);
     var element = document.getElementById('searchTagWrapper');
     var element2 = document.getElementById('searchTags');
     function animateExpandTagList() {
@@ -541,7 +559,7 @@ function clearSearchTags() {
   if(tagListExpanded) {
     document.getElementById('expandTagList').classList.remove('rotate180');
     clearInterval(expandAnim);
-    expandAnim = setInterval(animateExpandTagList, 5);
+    expandAnim = setInterval(animateExpandTagList, 3);
     var element = document.getElementById('searchTagWrapper');
     function animateExpandTagList() {
       if(element.clientHeight > 33) {
@@ -552,6 +570,7 @@ function clearSearchTags() {
     }
   }
   tagListExpanded = false;
+  loadPictures();
 }
 function switchIncludeExclude(tag, exclude, elm) {
   var i;
@@ -706,8 +725,8 @@ function loadPictures() {
         queryadd += " OR ";
       }
     }
-    query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
-    pictures = db.prepare(query).all(searchArrayInc, searchArrayInc.length);
+    query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (' + queryadd + ') AND excluded = ? GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
+    pictures = db.prepare(query).all(searchArrayInc, 0, searchArrayInc.length);
     if(searchArrayExc.length > 0) {
       queryadd = "";
       for(i = 0; i < searchArrayExc.length; i += 1) {
@@ -716,8 +735,8 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id ORDER BY pictures.id ASC;';
-      excludePictures = db.prepare(query).all(searchArrayExc);
+      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (' + queryadd + ') AND excluded = ? GROUP BY tags.id ORDER BY pictures.id ASC;';
+      excludePictures = db.prepare(query).all(searchArrayExc, 0);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
         for(x = pictures.length-1; x >= 0; x -= 1) {
@@ -728,7 +747,7 @@ function loadPictures() {
       }
     }
   } else {
-    pictures = db.prepare('SELECT * FROM pictures ORDER BY id ASC;').all();
+    pictures = db.prepare('SELECT * FROM pictures WHERE excluded = ? ORDER BY id ASC;').all(0);
     if(searchArrayExc.length > 0) {
       queryadd = "";
       for(i = 0; i < searchArrayExc.length; i += 1) {
@@ -737,8 +756,8 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE ' + queryadd + ' GROUP BY tags.id ORDER BY pictures.id ASC;';
-      excludePictures = db.prepare(query).all(searchArrayExc);
+      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (' + queryadd + ') AND excluded = ? GROUP BY tags.id ORDER BY pictures.id ASC;';
+      excludePictures = db.prepare(query).all(searchArrayExc, 0);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
         for(x = pictures.length-1; x >= 0; x -= 1) {
@@ -888,7 +907,7 @@ function addFolder(directory, sub, tag) {
             filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
             checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
             if(checkduplicate == 0) {
-              db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded) VALUES (?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60));
+              db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating) VALUES (?,?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60), 0);
               x += 1;
               if(tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
