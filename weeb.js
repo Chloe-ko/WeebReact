@@ -18,7 +18,11 @@ var pictures;
 var autoSearchHide;
 var autoEditHide;
 var expandAnim;
-var dropdownHide;
+var sortingDropdownHide;
+var orderDropdownHide;
+var fileDetailsId;
+var orderBy = "timeAdded";
+var sortingOrder = "ASC";
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
@@ -34,6 +38,8 @@ var tagListExpanded = false;
 var pictureScale = 1;
 var clearTagButtonShown = false;
 var sortingDropdownShown = false;
+var orderDropdownShown = false;
+var fileDetailsOpen = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
@@ -225,6 +231,7 @@ function checkIfAtBottom(scrollcontainer) {
   }
 }
 function closeFileDetails() {
+  fileDetailsOpen = false;
   var previewedFile = document.getElementById('previewedfile');
   if(previewedFile.tagName.toLowerCase() == "video") {
     previewedFile.pause();
@@ -244,6 +251,8 @@ function closeFileDetails() {
   }
 }
 function openDetails(picid) {
+  fileDetailsOpen = true;
+  fileDetailsId = picid;
   var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(pictureidarray[picid]);
   var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
   var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
@@ -268,7 +277,7 @@ function openDetails(picid) {
     copyLocation(picid);
   };
   for(i = 0; i < tags.length; i += 1) {
-    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
+    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
   }
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
   var i;
@@ -326,7 +335,9 @@ function editTagsConfirm (picid) {
   var i;
   for(i = 0; i < editTagsArray.length; i += 1) {
     db.prepare('INSERT INTO tags (tag, id) VALUES (?, ?);').run(editTagsArray[i], picid);
-    document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" /></div>");
+    if(fileDetailsOpen) {
+      document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" oncontextmenu=\"addSearchTag(\'" + editTagsArray[i] + "\', true);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + editTagsArray[i] + "\', \'" + picid + "\', this)\" /></div>");
+    }
   }
   hideEditTagsDialogue();
 }
@@ -371,16 +382,33 @@ function toggleSortingDropdown () {
   var rotatePic = document.getElementById('sortByDropDownImage');
   if(!sortingDropdownShown) {
     rotatePic.classList.add('rotate180');
-    elm.classList.add('dropdownDrop');
+    elm.classList.add('sortingDropdownDrop');
     sortingDropdownShown = true;
-    dropdownHide = document.getElementById('sortingDropdownHide').addEventListener('outclick', function(e) {
+    sortingDropdownHide = document.getElementById('sortingDropdownHide').addEventListener('outclick', function(e) {
       toggleSortingDropdown();
     });
   } else {
-    elm.classList.remove('dropdownDrop');
+    elm.classList.remove('sortingDropdownDrop');
     rotatePic.classList.remove('rotate180');
     sortingDropdownShown = false;
-    document.getElementById('sortingDropdownHide').removeEventListener('outclick', dropdownHide);
+    document.getElementById('sortingDropdownHide').removeEventListener('outclick', sortingDropdownHide);
+  }
+}
+function toggleOrderDropdown () {
+  var elm = document.getElementById('orderDropdown');
+  var rotatePic = document.getElementById('orderByDropDownImage');
+  if(!orderDropdownShown) {
+    rotatePic.classList.add('rotate180');
+    elm.classList.add('orderDropdownDrop');
+    orderDropdownShown = true;
+    orderDropdownHide = document.getElementById('orderDropdownHide').addEventListener('outclick', function(e) {
+      toggleOrderDropdown();
+    });
+  } else {
+    elm.classList.remove('orderDropdownDrop');
+    rotatePic.classList.remove('rotate180');
+    orderDropdownShown = false;
+    document.getElementById('orderDropdownHide').removeEventListener('outclick', orderDropdownHide);
   }
 }
 function expandTagList() {
@@ -407,6 +435,30 @@ function expandTagList() {
       }
     }
   }
+}
+function sortBy(s) {
+  orderBy = s;
+  var newtext;
+  if(s == "timeAdded") {
+    newtext = "Time Added";
+  } else if(s == "rating") {
+    newtext = "Rating";
+  } else if(s == "filename") {
+    newtext = "Filename";
+  }
+  document.getElementById('sortingDropdownText').innerHTML = "Sort By: " + newtext;
+  loadPictures();
+}
+function sortOrderBy(s) {
+  sortingOrder = s;
+  var newtext;
+  if(s == "ASC") {
+    newtext = "Ascending";
+  } else if(s == "DESC") {
+    newtext = "Descending";
+  }
+  document.getElementById('orderDropdownText').innerHTML = newtext;
+  loadPictures();
 }
 function searchAutocomplete(value) {
   var i;
@@ -485,8 +537,10 @@ function addSearchTag(tag, exclude) {
   }
   if(document.getElementById('searchTags').clientHeight > 33) {
     document.getElementById('expandTagList').style.display = "block";
+    document.getElementById('searchTags').style.paddingLeft = "60px";
   } else {
     document.getElementById('expandTagList').style.display = "none";
+    document.getElementById('searchTags').style.paddingLeft = "35px";
   }
   if(tagListExpanded && document.getElementById('searchTags').clientHeight > document.getElementById('searchTagWrapper').clientHeight) {
     clearInterval(expandAnim);
@@ -521,9 +575,6 @@ function removeSearchTag(tag, exclude, elm) {
       }
     }
   }
-  if(document.getElementById('searchTags').clientHeight > document.getElementById('searchTagWrapper').clientHeight && !tagListExpanded) {
-    document.getElementById('expandTagList').style.display = "none";
-  }
   removeElement(elm.parentNode);
   if(document.getElementById('searchTags').clientHeight < document.getElementById('searchTagWrapper').clientHeight && tagListExpanded) {
     clearInterval(expandAnim);
@@ -539,6 +590,7 @@ function removeSearchTag(tag, exclude, elm) {
     }
     if(element2.clientHeight == 33) {
     document.getElementById('expandTagList').style.display = "none";
+    document.getElementById('searchTags').style.paddingLeft = "35px";
     document.getElementById('expandTagList').classList.remove('rotate180');
     tagListExpanded = false;
     }
@@ -546,6 +598,11 @@ function removeSearchTag(tag, exclude, elm) {
   if(searchArrayInc.length == 0 && searchArrayExc.length == 0) {
     document.getElementById('clearSearchTags').style.display = "none";
     clearTagButtonShown = false;
+    document.getElementById('searchTags').style.paddingLeft = "0px";
+  }
+  if(document.getElementById('searchTags').clientHeight == 33 && !tagListExpanded) {
+    document.getElementById('expandTagList').style.display = "none";
+    document.getElementById('searchTags').style.paddingLeft = "35px";
   }
   loadPictures();
 }
@@ -556,20 +613,14 @@ function clearSearchTags() {
   document.getElementById('clearSearchTags').style.display = "none";
   clearTagButtonShown = false;
   document.getElementById('expandTagList').style.display = "none";
+  document.getElementById('searchTags').style.paddingLeft = "35px";
   if(tagListExpanded) {
     document.getElementById('expandTagList').classList.remove('rotate180');
     clearInterval(expandAnim);
-    expandAnim = setInterval(animateExpandTagList, 3);
-    var element = document.getElementById('searchTagWrapper');
-    function animateExpandTagList() {
-      if(element.clientHeight > 33) {
-        element.style.height = (element.clientHeight - 1) + "px";
-      } else {
-        clearInterval(expandAnim);
-      }
-    }
+    document.getElementById('searchTagWrapper').style.height = "33px";
   }
   tagListExpanded = false;
+  document.getElementById('searchTags').style.paddingLeft = "0px";
   loadPictures();
 }
 function switchIncludeExclude(tag, exclude, elm) {
@@ -725,7 +776,7 @@ function loadPictures() {
         queryadd += " OR ";
       }
     }
-    query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (' + queryadd + ') AND excluded = ? GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures.id ASC;';
+    query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures." + orderBy + " " + sortingOrder + ";";
     pictures = db.prepare(query).all(searchArrayInc, 0, searchArrayInc.length);
     if(searchArrayExc.length > 0) {
       queryadd = "";
@@ -735,7 +786,7 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (' + queryadd + ') AND excluded = ? GROUP BY tags.id ORDER BY pictures.id ASC;';
+      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? GROUP BY tags.id ORDER BY pictures." + orderBy + " " + sortingOrder + ";";
       excludePictures = db.prepare(query).all(searchArrayExc, 0);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
@@ -747,7 +798,7 @@ function loadPictures() {
       }
     }
   } else {
-    pictures = db.prepare('SELECT * FROM pictures WHERE excluded = ? ORDER BY id ASC;').all(0);
+    pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ? ORDER BY " + orderBy + " " + sortingOrder + ";").all(0);
     if(searchArrayExc.length > 0) {
       queryadd = "";
       for(i = 0; i < searchArrayExc.length; i += 1) {
@@ -756,7 +807,7 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = 'SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (' + queryadd + ') AND excluded = ? GROUP BY tags.id ORDER BY pictures.id ASC;';
+      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? GROUP BY tags.id ORDER BY pictures." + orderBy + " " + sortingOrder + ";";
       excludePictures = db.prepare(query).all(searchArrayExc, 0);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {

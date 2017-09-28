@@ -78,17 +78,17 @@ html,body {
   background-color: #373737;
 }
 #tagsearch {
-  height: 25px;
+  height: 33px;
   width: 505px;
-  position: relative;
-  top: 5px;
-  left: 5px;
+  position: fixed;
+  top: 42px;
+  right: 114px;
   z-index: 2;
 }
 #expandTagList {
   position: absolute;
-  left: 480px;
-  top: 1px;
+  left: 35px;
+  top: 4px;
   height: 25px;
   width: 25px;
   background-color: red;
@@ -104,8 +104,8 @@ html,body {
 #clearSearchTags {
   display: inline-block;
   position: absolute;
-  left: 450px;
-  top: 1px;
+  left: 5px;
+  top: 4px;
   height: 25px;
   width: 25px;
   cursor: pointer;
@@ -116,38 +116,43 @@ html,body {
 #searchTagWrapper {
   overflow: hidden;
   position: absolute;
-  left: 155px;
-  top: -4px;
-  width: 320px;
+  right: 155px;
+  top: 0px;
+  width: auto;
+  max-width: 345px;
   height: 33px;
   border-radius: 10px;
   background-color: #3d3d3d;
-  border: 1px solid black;
   z-index: 2;
+  text-align: right;
 }
 #searchTags {
   padding-top: 5px;
-  padding-right: 35px;
+  padding-left: 0px;
   z-index: 2;
 }
 #autoSearchWrapper {
   position: absolute;
   top: 1px;
-  left: 0px;
+  right: 0px;
   z-index: 2;
 }
 #searchbar {
   width: 130px;
-  height: 25px;
+  height: 30px;
   font-size: 1em;
-  border-radius: 5px;
+  border-radius: 10px;
   border: 0;
   outline: none;
   padding-left: 10px;
   padding-right: 10px;
   position: absolute;
-  top: -1px;
-  left: 0px;
+  right: 0px;
+  top: 0px;
+  background-color: #bbbbbb;
+}
+::-webkit-input-placeholder {
+  color: #383838;
 }
 #sortingOptions {
   width: 475px;
@@ -161,18 +166,40 @@ html,body {
 #sortingDropdownHide {
   width: 150px;
 }
+#orderDropdownHide {
+  width: 150px;
+}
 #sortingDropdownButton {
   height: 25px;
   width: 150px;
   border-radius: 10px;
   outline: none;
   border: 0px;
-  background-color: #FFFFFF;
+  background-color: #bbbbbb;
   text-align: middle;
-  position: relative;
+  position: absolute;
+  cursor: pointer;
+  left: 0;
+}
+#orderDropdownButton {
+  height: 25px;
+  width: 100px;
+  border-radius: 10px;
+  outline: none;
+  border: 0px;
+  background-color: #bbbbbb;
+  text-align: middle;
+  position: absolute;
+  left: 160px;
   cursor: pointer;
 }
 #sortingDropdownText {
+  display: inline-block;
+  font-size: 0.8em;
+  margin-top: 5px;
+  margin-left: 5px;
+}
+#orderDropdownText {
   display: inline-block;
   font-size: 0.8em;
   margin-top: 5px;
@@ -189,23 +216,43 @@ html,body {
   background-size: cover;
   -webkit-transition: -webkit-transform 0.3s;
 }
+#orderByDropDownImage {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  background-image: url('img/arrowBlack.png');
+  background-size: cover;
+  -webkit-transition: -webkit-transform 0.3s;
+}
 .dropdown {
   z-index: 1;
   color: black;
-  background-color: white;
+  background-color: #bbbbbb;
   border-bottom-right-radius: 10px;
   border-bottom-left-radius: 10px;
-  width: 100px;
-  position: absolute;
-  left: 38px;
-  top: 28px;
   font-size: 0.9em;
   height: 0px;
   overflow: hidden;
   -webkit-transition: height 0.3s;
 }
-.dropdownDrop {
+#sortingDropdown {
+  position: absolute;
+  left: 51px;
+  top: 28px;
+}
+#orderDropdown {
+  position: absolute;
+  top: 28px;
+  left: 170px;
+}
+.sortingDropdownDrop {
   height: 75px;
+}
+.orderDropdownDrop {
+  height: 50px;
 }
 .dropdownEntry {
   padding: 5px;
@@ -213,10 +260,11 @@ html,body {
   -webkit-transition-property: background;
   font-size: 0.9em;
   cursor: pointer;
-  background-color: white;
+  background-color: #bbbbbb;
   margin: 0;
   text-align: left;
-  padding-left: 16px;
+  padding-left: 5px;
+  padding-right: 5px;
 }
 .dropdownEntryBottom {
   border-bottom-left-radius: 10px;
@@ -233,7 +281,7 @@ html,body {
   height: 20px;
   padding-top: 3px;
   font-size: 0.9em;
-  margin-left: 5px;
+  margin-right: 5px;
   margin-bottom: 5px;
   cursor: pointer;
   position: relative;
@@ -506,6 +554,7 @@ html,body {
   margin-right: 5px;
   width: 180px;
   height: 25px;
+  background-color: #bbbbbb;
 }
 .editTagsButtons {
   outline: none;
@@ -579,8 +628,8 @@ html,body {
 #searchAutocomplete {
   position: absolute;
   width: 140px;
-  top: 26px;
-  left: 5px;
+  top: 32px;
+  right: 5px;
 }
 .autocomplete {
   z-index: 1;

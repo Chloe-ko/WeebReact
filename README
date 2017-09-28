@@ -6,12 +6,14 @@ Once all the important things are done I'll make the code far cleaner.
 
 TODO:
 
-1.  Other sorting/filter options (eg. only certain filetypes, sort by when added)
+    nexttodo: use mtime for timeAdded instead of current timestamp
+1.  filter options (eg. only certain filetypes)
 2.  refresh button to change for directory changes
     when changes are done while program is off, check changes on startup
     If pictures are missing from directory and there are new ones, check if they've been renamed using hash
 3.  Selection feature to add/remove tags from multiple pics at once
 4.  Built-in updater
+5.  Drag into window to open details page
 
 For after important stuff is done:
 
