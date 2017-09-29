@@ -20,17 +20,20 @@ var autoEditHide;
 var expandAnim;
 var sortingDropdownHide;
 var orderDropdownHide;
+var filterDropdownHide;
 var fileDetailsId;
-var orderBy = "timeAdded";
-var sortingOrder = "ASC";
+var canLoadMore;
+var orderBy = "datetime(timeAdded)";
+var sortingOrder = "DESC";
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
 var searchArrayExc = [];
+var excludedFiletypes = [];
+var pictureClientSize = 210;
 var loadnew = true;
 var pictureid = 0;
 var firstRun = true;
-var canLoadMore;
 var xxhashsalt = 4152;
 var sqlalreadysetup = false;
 var lastZ = 0;
@@ -39,6 +42,7 @@ var pictureScale = 1;
 var clearTagButtonShown = false;
 var sortingDropdownShown = false;
 var orderDropdownShown = false;
+var filterDropdownShown = false;
 var fileDetailsOpen = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
@@ -60,7 +64,7 @@ function countPics() {
   setContainerheight();
 }
 function setContainerheight () {
-  document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*210)))*(pictureScale*210) + "px";
+  document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*pictureClientSize)))*(pictureScale*pictureClientSize) + "px";
 }
 function init() {
   document.getElementById("minimize-btn").addEventListener("click", function (e) {
@@ -92,9 +96,16 @@ function init() {
     document.getElementById('setup').style.display = 'block';
     if(!sqlalreadysetup) {
       db.pragma('journal_mode = WAL');
-      db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, rating integer, hash text unique, excluded integer, timeAdded integer, unique(path, filename));').run();
+      db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, filetype text, rating integer, hash text unique, excluded integer, timeAdded integer, unique(path, filename));').run();
       db.prepare('CREATE TABLE tags (tag text, id int, unique(tag, id));').run();
       db.prepare('CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);').run();
+      db.prepare('CREATE TABLE settings (name text pimary key, value integer);').run();
+      db.prepare('INSERT INTO settings VALUES (hidensfw, 1);').run();
+      db.prepare('INSERT INTO settings VALUES (excludejpg, 0);').run();
+      db.prepare('INSERT INTO settings VALUES (excludepng, 0);').run();
+      db.prepare('INSERT INTO settings VALUES (excludegif, 0);').run();
+      db.prepare('INSERT INTO settings VALUES (excludemp4, 0);').run();
+      db.prepare('INSERT INTO settings VALUES (excludewebm, 0);').run();
     }
   } else {
     removeElementById("setup");
@@ -110,7 +121,7 @@ function init() {
 }
 function scrollFunctions() {
   var obj = document.getElementById("mainpagecontent");
-  var picsPerLine = Math.floor(obj.clientWidth/(pictureScale*210));
+  var picsPerLine = Math.floor(obj.clientWidth/(pictureScale*pictureClientSize));
   scrollingTopside(obj, picsPerLine);
   scrollingBottomside(obj, picsPerLine);
   checkIfAtBottom(obj);
@@ -119,10 +130,36 @@ function scrollFunctions() {
   }
   setContainerheight();
 }
+function filterFiletype (filetype) {
+  var i;
+  var exclude = true;
+  var elm = document.getElementById('filetype' + filetype);
+  for(i = 0; i < excludedFiletypes.length; i += 1) {
+    if(filetype == excludedFiletypes[i]) {
+      exclude = false;
+    }
+  }
+  if(exclude) {
+    excludedFiletypes.push(filetype);
+    if(filetype == "jpg") {
+      excludedFiletypes.push("jpeg");
+    }
+    elm.classList.remove('includedFiletype');
+    elm.classList.add('excludedFiletype');
+  } else {
+    excludedFiletypes.splice(excludedFiletypes.indexOf(filetype), 1);
+    if(filetype == "jpg") {
+      excludedFiletypes.splice(excludedFiletypes.indexOf("jpeg"), 1);
+    }
+    elm.classList.remove('excludedFiletype');
+    elm.classList.add('includedFiletype');
+  }
+  loadPictures();
+}
 function scrollingBottomside(obj, picsPerLine) {
   var i;
   var element;
-  var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
+  var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*pictureClientSize))*(Math.floor(obj.clientWidth/(pictureScale*pictureClientSize)));
   if(x > lastX && x <= pictureid) {
     for(i = x - picsPerLine; i < x; i += 1) {
       element = document.getElementById('picture' + i);
@@ -166,7 +203,7 @@ function scrollingBottomside(obj, picsPerLine) {
 function scrollingTopside(obj, picsPerLine) {
   var i;
   var element;
-  var z = Math.floor((obj.scrollTop)/(pictureScale*210))*(Math.floor(obj.clientWidth/(pictureScale*210)));
+  var z = Math.floor((obj.scrollTop)/(pictureScale*pictureClientSize))*(Math.floor(obj.clientWidth/(pictureScale*pictureClientSize)));
   if(z > 0 && z > lastZ && z < pictureid) {
     for(i = z - picsPerLine; i < z; i += 1) {
       element = document.getElementById('picture' + i);
@@ -221,7 +258,7 @@ function hideContextMenu(el) {
 function checkIfAtBottom(scrollcontainer) {
   obj = scrollcontainer;
   obj2 = document.getElementById("picturecontainer");
-  if(obj2.scrollHeight - obj.clientHeight - obj.scrollTop < (pictureScale*210)) {
+  if(obj2.scrollHeight - obj.clientHeight - obj.scrollTop < (pictureScale*pictureClientSize)) {
     if(loadnew && canLoadMore) {
       loadnew = false;
       loadMorePictures();
@@ -266,7 +303,7 @@ function openDetails(picid) {
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
   details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
-  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment.unix(pic.timeAdded).format("DD/MM/YYYY") + "</div></div></div><br /><br />");
+  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment(pic.timeAdded, "YYYY-MM-DD HH:mm:ss").format("DD/MM/YYYY") + "</div></div></div><br /><br />");
   var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(pictureidarray[picid]);
   var tagHtml = "";
   var i;
@@ -411,6 +448,23 @@ function toggleOrderDropdown () {
     document.getElementById('orderDropdownHide').removeEventListener('outclick', orderDropdownHide);
   }
 }
+function toggleFilterDropdown () {
+  var elm = document.getElementById('filterDropdown');
+  var rotatePic = document.getElementById('filterByDropDownImage');
+  if(!filterDropdownShown) {
+    rotatePic.classList.add('rotate180');
+    elm.classList.add('filterDropdownDrop');
+    filterDropdownShown = true;
+    filterDropdownHide = document.getElementById('filterDropdownHide').addEventListener('outclick', function(e) {
+      toggleFilterDropdown();
+    });
+  } else {
+    elm.classList.remove('filterDropdownDrop');
+    rotatePic.classList.remove('rotate180');
+    filterDropdownShown = false;
+    document.getElementById('filterDropdownHide').removeEventListener('outclick', filterDropdownHide);
+  }
+}
 function expandTagList() {
   clearInterval(expandAnim);
   expandAnim = setInterval(animateExpandTagList, 3);
@@ -439,7 +493,7 @@ function expandTagList() {
 function sortBy(s) {
   orderBy = s;
   var newtext;
-  if(s == "timeAdded") {
+  if(s == "datetime(timeAdded)") {
     newtext = "Time Added";
   } else if(s == "rating") {
     newtext = "Rating";
@@ -733,7 +787,7 @@ function loadMorePictures() {
   if(canLoadMore) {
     var mainHeight = document.getElementById("mainpagecontent").clientHeight;
     var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-    var picAmount = (Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
+    var picAmount = (Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.floor(mainHeight/(pictureScale*pictureClientSize)));
     if(pictureid + picAmount > piccount) {
       picAmount = piccount - pictureid;
       canLoadMore = false;
@@ -759,15 +813,28 @@ function loadPictures() {
   picPaths = [];
   pictureidarray = [];
   pictureid = 0;
+  var i;
   document.getElementById('picturecontainer').innerHTML = "";
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   var mainHeight = document.getElementById("mainpagecontent").clientHeight;
   var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-  var picAmount = 3*(Math.floor(mainWidth/(pictureScale*210))*Math.floor(mainHeight/(pictureScale*210)));
+  var picAmount = 3*(Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.floor(mainHeight/(pictureScale*pictureClientSize)));
   var extension;
+  var excludeQuery;
+  if(excludedFiletypes.length == 0) {
+    excludeQuery = "";
+  } else {
+    excludeQuery = " AND filetype NOT IN("
+    for(i = 0; i < excludedFiletypes.length; i += 1) {
+      excludeQuery += "'" + excludedFiletypes[i] + "'";
+      if(i+1 < excludedFiletypes.length) {
+        excludeQuery += ", ";
+      }
+    }
+    excludeQuery += ")";
+  }
   if(searchArrayInc.length > 0) {
     var queryadd = "";
-    var i;
     var query;
     var excludePictures;
     for(i = 0; i < searchArrayInc.length; i += 1) {
@@ -776,7 +843,7 @@ function loadPictures() {
         queryadd += " OR ";
       }
     }
-    query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? GROUP BY tags.id HAVING count(*) = ? ORDER BY pictures." + orderBy + " " + sortingOrder + ";";
+    query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ?" + excludeQuery + " GROUP BY tags.id HAVING count(*) = ? ORDER BY " + orderBy + " " + sortingOrder + ";";
     pictures = db.prepare(query).all(searchArrayInc, 0, searchArrayInc.length);
     if(searchArrayExc.length > 0) {
       queryadd = "";
@@ -786,7 +853,7 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? GROUP BY tags.id ORDER BY pictures." + orderBy + " " + sortingOrder + ";";
+      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ?" + excludeQuery + " GROUP BY tags.id ORDER BY " + orderBy + " " + sortingOrder + ";";
       excludePictures = db.prepare(query).all(searchArrayExc, 0);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
@@ -798,7 +865,7 @@ function loadPictures() {
       }
     }
   } else {
-    pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ? ORDER BY " + orderBy + " " + sortingOrder + ";").all(0);
+    pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ?" + excludeQuery + " ORDER BY " + orderBy + " " + sortingOrder + ";").all(0);
     if(searchArrayExc.length > 0) {
       queryadd = "";
       for(i = 0; i < searchArrayExc.length; i += 1) {
@@ -807,7 +874,7 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? GROUP BY tags.id ORDER BY pictures." + orderBy + " " + sortingOrder + ";";
+      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ?" + excludeQuery + " GROUP BY tags.id ORDER BY " + orderBy + " " + sortingOrder + ";";
       excludePictures = db.prepare(query).all(searchArrayExc, 0);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
@@ -841,7 +908,7 @@ function loadPictures() {
     pictureid += 1;
   }
   document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"></div>";
-  var picAmountShown = Math.floor(mainWidth/(pictureScale*210))*Math.ceil(mainHeight/(pictureScale*210));
+  var picAmountShown = Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.ceil(mainHeight/(pictureScale*pictureClientSize));
   var element;
   if(picAmount < picAmountShown) {
     picAmountShown = picAmount;
@@ -946,6 +1013,7 @@ function addFolder(directory, sub, tag) {
     var tags;
     var id;
     var checkduplicate;
+    var insertquery = 'INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating, filetype) VALUES (?,?,?,?,?,?,?);';
     if(sub) {
       var directories = getDirectories(directory, false, "");
       for(z = 0; z < directories.length; z += 1) {
@@ -958,7 +1026,7 @@ function addFolder(directory, sub, tag) {
             filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
             checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
             if(checkduplicate == 0) {
-              db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating) VALUES (?,?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60), 0);
+              db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension);
               x += 1;
               if(tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
@@ -981,7 +1049,7 @@ function addFolder(directory, sub, tag) {
         filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
         checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
         if(checkduplicate == 0) {
-          db.prepare('INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating) VALUES (?,?,?,?,?,?);').run(filename, picpath, filehash, 0, moment().unix() + (moment().utcOffset()*60), 0);
+          db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension);
           x += 1;
         }
       }

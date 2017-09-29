@@ -163,11 +163,20 @@ html,body {
   z-index: 1;
   padding-top: 3px;
 }
-#sortingDropdownHide {
-  width: 150px;
+.includedFiletype {
+  background: url('img/check.png');
+  background-size: cover;
+  width: 10px;
+  height: 10px;
 }
-#orderDropdownHide {
-  width: 150px;
+.excludedFiletype {
+  background: url('img/closeBlack.png');
+  background-size: cover;
+  width: 10px;
+  height: 10px;
+}
+.filtertext {
+  margin-left: 5px;
 }
 #sortingDropdownButton {
   height: 25px;
@@ -193,30 +202,25 @@ html,body {
   left: 160px;
   cursor: pointer;
 }
-#sortingDropdownText {
-  display: inline-block;
-  font-size: 0.8em;
-  margin-top: 5px;
-  margin-left: 5px;
-}
-#orderDropdownText {
-  display: inline-block;
-  font-size: 0.8em;
-  margin-top: 5px;
-  margin-left: 5px;
-}
-#sortByDropDownImage {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
+#filterDropdownButton {
+  height: 25px;
+  width: 90px;
+  border-radius: 10px;
+  outline: none;
+  border: 0px;
+  background-color: #bbbbbb;
+  text-align: middle;
   position: absolute;
-  right: 5px;
-  top: 5px;
-  background-image: url('img/arrowBlack.png');
-  background-size: cover;
-  -webkit-transition: -webkit-transform 0.3s;
+  left: 270px;
+  cursor: pointer;
 }
-#orderByDropDownImage {
+.dropdownText {
+  display: inline-block;
+  font-size: 0.8em;
+  margin-top: 5px;
+  margin-left: 5px;
+}
+.dropdownArrow {
   display: inline-block;
   width: 15px;
   height: 15px;
@@ -248,11 +252,19 @@ html,body {
   top: 28px;
   left: 170px;
 }
+#filterDropdown {
+  position: absolute;
+  top: 28px;
+  left: 280px;
+}
 .sortingDropdownDrop {
   height: 75px;
 }
 .orderDropdownDrop {
   height: 50px;
+}
+.filterDropdownDrop {
+  height: 125px;
 }
 .dropdownEntry {
   padding: 5px;

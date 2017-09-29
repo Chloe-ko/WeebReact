@@ -38,23 +38,36 @@
           <div id="sortingOptions">
             <div id="sortingDropdownHide">
               <div id="sortingDropdownButton" onclick="toggleSortingDropdown();">
-                <div id="sortingDropdownText">Sort By: Time Added</div>
-                <div id="sortByDropDownImage"></div>
+                <div id="sortingDropdownText" class="dropdownText">Sort By: Time Added</div>
+                <div id="sortByDropDownImage" class="dropdownArrow"></div>
               </div>
               <div id="sortingDropdown" class="dropdown">
-                <div class="dropdownEntry" onclick="sortBy('timeAdded'); toggleSortingDropdown();">Time Added</div>
+                <div class="dropdownEntry" onclick="sortBy('datetime(timeAdded)'); toggleSortingDropdown();">Time Added</div>
                 <div class="dropdownEntry" onclick="sortBy('filename'); toggleSortingDropdown();">Filename</div>
                 <div class="dropdownEntry dropdownEntryBottom" onclick="sortBy('rating'); toggleSortingDropdown();">Rating</div>
               </div>
             </div>
             <div id="orderDropdownHide">
               <div id="orderDropdownButton" onclick="toggleOrderDropdown();">
-                <div id="orderDropdownText">Ascending</div>
-                <div id="orderByDropDownImage"></div>
+                <div id="orderDropdownText" class="dropdownText">Descending</div>
+                <div id="orderByDropDownImage" class="dropdownArrow"></div>
               </div>
               <div id="orderDropdown" class="dropdown">
-                <div class="dropdownEntry" onclick="sortOrderBy('ASC'); toggleOrderDropdown();">Ascending</div>
-                <div class="dropdownEntry dropdownEntryBottom" onclick="sortOrderBy('DESC'); toggleOrderDropdown();">Descending</div>
+                <div class="dropdownEntry" onclick="sortOrderBy('DESC'); toggleOrderDropdown();">Descending</div>
+                <div class="dropdownEntry dropdownEntryBottom" onclick="sortOrderBy('ASC'); toggleOrderDropdown();">Ascending</div>
+              </div>
+            </div>
+            <div id="filterDropdownHide">
+              <div id="filterDropdownButton" onclick="toggleFilterDropdown();">
+                <div id="filterDropdownText" class="dropdownText">Filetypes</div>
+                <div id="filterByDropDownImage" class="dropdownArrow"></div>
+              </div>
+              <div id="filterDropdown" class="dropdown">
+                <div class="dropdownEntry" onclick="filterFiletype('png');"><div id="filetypepng" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">png</div></div>
+                <div class="dropdownEntry" onclick="filterFiletype('jpg');"><div id="filetypejpg" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">jpg/jpeg</div></div>
+                <div class="dropdownEntry" onclick="filterFiletype('gif');"><div id="filetypegif" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">gif</div></div>
+                <div class="dropdownEntry" onclick="filterFiletype('webm');"><div id="filetypewebm" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">webm</div></div>
+                <div class="dropdownEntry dropdownEntryBottom" onclick="filterFiletype('mp4');"><div id="filetypemp4" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">mp4</div></div>
               </div>
             </div>
           </div>
