@@ -33,6 +33,7 @@ var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
 var searchArrayExc = [];
 var excludedFiletypes = [];
+var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
 var pictureClientSize = 210;
 var loadnew = true;
 var pictureid = 0;
@@ -128,6 +129,9 @@ function init() {
         document.getElementById('filetype' + excludedFiletypes[i]).classList.add("excludedFiletype");
       }
     }
+    if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
+      searchArrayExc.push("nsfw");
+    }
     removeElementById("setup");
     loadPictures();
   }
@@ -189,7 +193,66 @@ function toggleSettingsExcludeNSFW (exclude) {
   }
 }
 function confirmSettings() {
-  //TODO TODO TODO TODO
+  var reloadNeeded = false;
+  if(nsfwSettingChanged) {
+    var settingsNsfwExcluded = db.prepare('SELECT value FROM settings WHERE name = ?;').get('hidensfw').value;
+    if((settingsNsfwExcluded == 1 && document.getElementById('excludeNsfwNo').classList.contains("selectedYes")) ||
+        settingsNsfwExcluded == 0 && document.getElementById('excludeNsfwYes').classList.contains('selectedYes')) {
+      var setNsfwExcluded;
+      var nsfwindex = searchArrayExc.indexOf("nsfw");
+      if(document.getElementById('excludeNsfwNo').classList.contains("selectedYes")) {
+        setNsfwExcluded = 0;
+        if(nsfwindex != -1) {
+          searchArrayExc.splice(nsfwindex, 1);
+          reloadNeeded = true;
+        }
+      } else {
+        setNsfwExcluded = 1;
+        if(nsfwindex == -1 && searchArrayInc.indexOf("nsfw") == -1) {
+          searchArrayExc.push("nsfw");
+          reloadNeeded = true;
+        }
+      }
+      db.prepare('UPDATE settings SET value = ? WHERE name = ?').run(setNsfwExcluded, 'hidensfw');
+    }
+  }
+  if(tagSettingChanged) {
+    reloadNeeded = true;
+    var i;
+    var toBeExcluded;
+    var elem;
+    for(i = 0; i < filetypes.length; i += 1) {
+      if(document.getElementById('excludefiletype' + filetypes[i]).classList.contains("includedFiletype")) {
+        toBeExcluded = 0;
+      } else {
+        toBeExcluded = 1;
+      }
+      db.prepare('UPDATE settings SET value = ? WHERE name = ?;').run(toBeExcluded, 'exclude' + filetypes[i]);
+      if(filetypes[i] == "jpg") {
+        db.prepare('UPDATE settings SET value = ? WHERE name = ?;').run(toBeExcluded, 'excludejpeg');
+      }
+      elem = document.getElementById('filetype' + filetypes[i]);
+      if(toBeExcluded == 1 && elem.classList.contains("includedFiletype")) {
+        elem.classList.remove("includedFiletype");
+        elem.classList.add("excludedFiletype");
+        excludedFiletypes.push(filetypes[i]);
+        if(filetypes[i] == "jpg") {
+          excludedFiletypes.push("jpeg");
+        }
+      } else if(toBeExcluded == 0 && elem.classList.contains("excludedFiletype")) {
+        elem.classList.remove("excludedFiletype");
+        elem.classList.add("includedFiletype");
+        excludedFiletypes.splice(excludedFiletypes.indexOf(filetypes[i]), 1);
+        if(filetypes[i] == "jpg") {
+          excludedFiletypes.splice(excludedFiletypes.indexOf("jpeg"), 1);
+        }
+      }
+    }
+  }
+  if(reloadNeeded) {
+    loadPictures();
+  }
+  toggleSettingsWindow();
 }
 function toggleSettingsWindow () {
   if(!settingsShown) {
@@ -197,7 +260,6 @@ function toggleSettingsWindow () {
     tagSettingChanged = false;
     var settingsTagsExcluded = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
     var i;
-    var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
     for(i = 0; i < filetypes.length; i += 1) {
       if(document.getElementById('excludefiletype' + filetypes[i]).classList.contains("excludedFiletype")) {
         document.getElementById('excludefiletype' + filetypes[i]).classList.remove("excludedFiletype");
@@ -696,6 +758,11 @@ function addSearchTag(tag, exclude) {
   var removeExclude;
   var i;
   var add = true;
+  if(tag == "nsfw" && !exclude) {
+    if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
+      searchArrayExc.splice(searchArrayExc.indexOf("nsfw"), 1);
+    }
+  }
   for(i = 0; i < searchArrayInc.length; i += 1) {
     if(searchArrayInc[i] == tag) {
       add = false;
@@ -752,6 +819,9 @@ function removeSearchTag(tag, exclude, elm) {
     for(i = 0; i < searchArrayInc.length; i += 1) {
       if(searchArrayInc[i] == tag) {
         searchArrayInc.splice(i, 1);
+        if(tag == "nsfw" && db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
+          searchArrayExc.push("nsfw");
+        }
       }
     }
   } else {
@@ -781,7 +851,8 @@ function removeSearchTag(tag, exclude, elm) {
     tagListExpanded = false;
     }
   }
-  if(searchArrayInc.length == 0 && searchArrayExc.length == 0) {
+  var nsfwExcluded = db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1;
+  if((nsfwExcluded == 0 && searchArrayInc.length == 0 && searchArrayExc.length == 0) || (nsfwExcluded == 1 && searchArrayInc.length == 0 && searchArrayExc.length == 1)) {
     document.getElementById('clearSearchTags').style.display = "none";
     clearTagButtonShown = false;
     document.getElementById('searchTags').style.paddingLeft = "0px";
@@ -795,6 +866,9 @@ function removeSearchTag(tag, exclude, elm) {
 function clearSearchTags() {
   searchArrayInc = [];
   searchArrayExc = [];
+  if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
+    searchArrayExc.push("nsfw");
+  }
   document.getElementById('searchTags').innerHTML = "";
   document.getElementById('clearSearchTags').style.display = "none";
   clearTagButtonShown = false;
