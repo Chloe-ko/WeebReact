@@ -169,8 +169,20 @@ html,body {
   width: 10px;
   height: 10px;
 }
+.selectedYes{
+  background: url('img/selectedYes.png');
+  background-size: cover;
+  width: 10px;
+  height: 10px;
+}
 .excludedFiletype {
   background: url('img/closeBlack.png');
+  background-size: cover;
+  width: 10px;
+  height: 10px;
+}
+.selectedNo {
+  background: url('img/selectedNo.png');
   background-size: cover;
   width: 10px;
   height: 10px;
@@ -527,9 +539,44 @@ html,body {
   opacity: 0;
   display: none;
 }
+#settingsArea {
+  //display: block;
+  //opacity: 1;
+  font-size: 0.9em;
+}
+#settingsPopup {
+  color: white;
+}
+.settingsFileExclude {
+  background-color: #bbbbbb;
+  padding: 5px;
+  border-radius: 5px;
+  margin-right: 5px;
+  cursor: pointer;
+  color: black;
+  -webkit-transition: background-color 0.3s;
+}
+.settingsFileExclude:hover {
+  background-color: rgb(150,150,150);
+}
+#settingsConfirmButton {
+  position: relative;
+  left: 50%;
+  -webkit-transform: translate(-50%, 0);
+  border-radius: 10px;
+  background-color: #bbbbbb;
+  padding: 5px;
+  width: 50px;
+  color: black;
+  cursor: pointer;
+  -webkit-transition: background-color 0.3s;
+}
+#settingsConfirmButton:hover {
+  background-color: rgb(150,150,150);
+}
 .popUpDialogueWrapper {
   min-height: 100px;
-  width: 281px;
+  width: 330px;
   background-color: #1f1f1f;
   position: relative;
   left: 50%;
@@ -540,7 +587,7 @@ html,body {
 }
 .popUpDialogue {
   min-height: 80px;
-  width: 241px;
+  width: 290px;
   position: relative;
   text-align: left;
   margin: 20px;
@@ -841,4 +888,32 @@ html,body {
 }
 .contextmenutext {
   padding-top: 12px;
+}
+#trbuttons {
+  position: fixed;
+  right: 115px;
+  top: 15px;
+  width: 150px;
+  height: 25px;
+  z-index: 2;
+}
+.optionsbutton {
+  height: 25px;
+  width: 70px;
+  background-color: blue;
+  border-radius: 10px;
+  cursor: pointer;
+  background-color: #bbbbbb;
+  text-align: center;
+  font-size: 0.9em;
+  -webkit-transition: background-color 0.3s;
+}
+.optionsbutton:hover {
+  background-color: rgb(150,150,150);
+}
+.optionsbuttontext {
+  margin-top: 4px;
+}
+#settingsbutton {
+  margin-left: 10px;
 }

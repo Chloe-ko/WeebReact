@@ -21,6 +21,17 @@
           <div id="title">WeebReact</div>
         </div>
         <div id="options">
+          <div id="trbuttons">
+            <div id="refreshbutton" class="optionsbutton inlineblock">
+              <div class="optionsbuttontext">
+                Refresh
+              </div>
+            </div><div id="settingsbutton" class="optionsbutton inlineblock" onclick="toggleSettingsWindow();">
+              <div class="optionsbuttontext">
+                Settings
+              </div>
+            </div>
+          </div>
           <div id="tagsearch">
             <div id="searchTagWrapper">
               <div id="searchTags">
@@ -64,7 +75,7 @@
               </div>
               <div id="filterDropdown" class="dropdown">
                 <div class="dropdownEntry" onclick="filterFiletype('png');"><div id="filetypepng" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">png</div></div>
-                <div class="dropdownEntry" onclick="filterFiletype('jpg');"><div id="filetypejpg" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">jpg/jpeg</div></div>
+                <div class="dropdownEntry" onclick="filterFiletype('jpg');"><div id="filetypejpg" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">jpg</div></div>
                 <div class="dropdownEntry" onclick="filterFiletype('gif');"><div id="filetypegif" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">gif</div></div>
                 <div class="dropdownEntry" onclick="filterFiletype('webm');"><div id="filetypewebm" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">webm</div></div>
                 <div class="dropdownEntry dropdownEntryBottom" onclick="filterFiletype('mp4');"><div id="filetypemp4" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">mp4</div></div>
@@ -107,6 +118,28 @@
               </div>
               <img src="img/close.png" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">
               <button id="editTagsConfirm" class="editTagsButtons">Confirm</button>
+            </div>
+          </div>
+          <div id="settingsArea" class="overlayArea">
+            <div id="settingsWrapper" class="popUpDialogueWrapper">
+              <div id="settingsPopup" class="popUpDialogue">
+                <div id="filetypeSettings">
+                  Exclude filetypes<br /><br />
+                  <div id="settingsExcludePng" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeFiletypes('png');"><div id="excludefiletypepng" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">png</div></div>
+                  <div id="settingsExcludeJpg" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeFiletypes('jpg');"><div id="excludefiletypejpg" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">jpg</div></div>
+                  <div id="settingsExcludeGif" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeFiletypes('gif');"><div id="excludefiletypegif" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">gif</div></div>
+                  <div id="settingsExcludeWebm" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeFiletypes('webm');"><div id="excludefiletypewebm" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">webm</div></div>
+                  <div id="settingsExcludeMp4" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeFiletypes('mp4');"><div id="excludefiletypemp4" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">mp4</div></div>
+                </div><br /><br />
+                <div id="nsfwSettings">
+                  Exclude pictures with "nsfw" tag?<br /><br />
+                  <div id="settingsExcludeNsfwYes" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeNSFW(true);"><div id="excludeNsfwYes" class="selectedYes inlineblock"></div><div class="inlineblock filtertext">Yes</div></div>
+                  <div id="settingsExcludeNsfwNo" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeNSFW(false);"><div id="excludeNsfwNo" class="selectedNo inlineblock"></div><div class="inlineblock filtertext">No</div></div>
+                </div><br /><br />
+                <div id="settingsconfirm">
+                  <div id="settingsConfirmButton" onclick="confirmSettings();">Confirm</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

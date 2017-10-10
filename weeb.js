@@ -23,6 +23,9 @@ var orderDropdownHide;
 var filterDropdownHide;
 var fileDetailsId;
 var canLoadMore;
+var tagSettingChanged;
+var nsfwSettingChanged;
+var settingsExcludedFiletypes;
 var orderBy = "datetime(timeAdded)";
 var sortingOrder = "DESC";
 var editTagsArray = [];
@@ -44,6 +47,7 @@ var sortingDropdownShown = false;
 var orderDropdownShown = false;
 var filterDropdownShown = false;
 var fileDetailsOpen = false;
+var settingsShown = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
@@ -85,29 +89,45 @@ function init() {
     window.close();
   });
   if(firstRun) {
-    document.getElementById('mainpage').style.display = "none";
-    document.getElementById('greyboxr').style.backgroundColor = "#282828";
-    document.getElementById('greyboxl').style.backgroundColor = "#282828";
-    document.getElementById('setupcontent').innerHTML = "Welcome!<br /><br />It looks like you don't have any folders set up yet. Please select the folder that contains your Reaction Pictures.<br /><br /><br /><button id=\"browsefolder\" class=\"roundbutton\">Select Folder</button><br /><br /><br /><div id=\"filetype-hint\">Supported Filetypes: .jpg .jpeg .png .gif .webm .mp4</div>";
-    document.getElementById('browsefolder').addEventListener("click", function() {
-      dialog.showOpenDialog({properties:['openDirectory']}, checkPictures);
+    document.getElementById("mainpage").style.display = "none";
+    document.getElementById("greyboxr").style.backgroundColor = "#282828";
+    document.getElementById("greyboxl").style.backgroundColor = "#282828";
+    document.getElementById("setupcontent").innerHTML = "Welcome!<br /><br />It looks like you don\'t have any folders set up yet. Please select the folder that contains your Reaction Pictures.<br /><br /><br /><button id=\"browsefolder\" class=\"roundbutton\">Select Folder</button><br /><br /><br /><div id=\"filetype-hint\">Supported Filetypes: .jpg .jpeg .png .gif .webm .mp4</div>";
+    document.getElementById("browsefolder").addEventListener("click", function() {
+      dialog.showOpenDialog({properties:["openDirectory"]}, checkPictures);
     });
-    document.getElementById('overlay').style.display = 'block';
-    document.getElementById('setup').style.display = 'block';
+    document.getElementById("overlay").style.display = "block";
+    document.getElementById("setup").style.display = "block";
     if(!sqlalreadysetup) {
-      db.pragma('journal_mode = WAL');
-      db.prepare('CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, filetype text, rating integer, hash text unique, excluded integer, timeAdded integer, unique(path, filename));').run();
-      db.prepare('CREATE TABLE tags (tag text, id int, unique(tag, id));').run();
-      db.prepare('CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);').run();
-      db.prepare('CREATE TABLE settings (name text pimary key, value integer);').run();
-      db.prepare('INSERT INTO settings VALUES (hidensfw, 1);').run();
-      db.prepare('INSERT INTO settings VALUES (excludejpg, 0);').run();
-      db.prepare('INSERT INTO settings VALUES (excludepng, 0);').run();
-      db.prepare('INSERT INTO settings VALUES (excludegif, 0);').run();
-      db.prepare('INSERT INTO settings VALUES (excludemp4, 0);').run();
-      db.prepare('INSERT INTO settings VALUES (excludewebm, 0);').run();
+      db.pragma("journal_mode = WAL");
+      db.prepare("CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, filetype text, rating integer, hash text unique, excluded integer, timeAdded integer, unique(path, filename));").run();
+      db.prepare("CREATE TABLE tags (tag text, id int, unique(tag, id));").run();
+      db.prepare("CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);").run();
+      db.prepare("CREATE TABLE settings (name text pimary key, value integer);").run();
+      db.prepare("INSERT INTO settings VALUES ('hidensfw', 1);").run();
+      db.prepare("INSERT INTO settings VALUES ('excludejpg', 0);").run();
+      db.prepare("INSERT INTO settings VALUES ('excludepng', 0);").run();
+      db.prepare("INSERT INTO settings VALUES ('excludegif', 0);").run();
+      db.prepare("INSERT INTO settings VALUES ('excludemp4', 0);").run();
+      db.prepare("INSERT INTO settings VALUES ('excludewebm', 0);").run();
     }
   } else {
+    var settingsEFQuery = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
+    var i;
+    var filetype;
+    for(i = 0; i < settingsEFQuery.length; i += 1) {
+      filetype = settingsEFQuery[i].name.substring(7);
+      excludedFiletypes.push(filetype);
+      if(filetype == "jpg") {
+        excludedFiletypes.push("jpeg");
+      }
+    }
+    for(i = 0; i < excludedFiletypes.length; i += 1) {
+      if(excludedFiletypes[i] != "jpeg") {
+        document.getElementById('filetype' + excludedFiletypes[i]).classList.remove("includedFiletype");
+        document.getElementById('filetype' + excludedFiletypes[i]).classList.add("excludedFiletype");
+      }
+    }
     removeElementById("setup");
     loadPictures();
   }
@@ -129,6 +149,118 @@ function scrollFunctions() {
     hideContextMenu(contextmenuelement);
   }
   setContainerheight();
+}
+function toggleSettingsExcludeFiletypes (filetype) {
+  var element = document.getElementById('excludefiletype' + filetype);
+  if(!tagSettingChanged) {
+    tagSettingChanged = true;
+  }
+  if(element.classList.contains("excludedFiletype")) {
+    element.classList.remove("excludedFiletype");
+    element.classList.add("includedFiletype");
+  } else {
+    element.classList.add("excludedFiletype");
+    element.classList.remove("includedFiletype");
+  }
+}
+function toggleSettingsExcludeNSFW (exclude) {
+  var yeselement = document.getElementById('excludeNsfwYes');
+  var noelement = document.getElementById('excludeNsfwNo');
+  if(!exclude) {
+    if(noelement.classList.contains("selectedNo")) {
+      if(!nsfwSettingChanged) {
+        nsfwSettingChanged = true;
+      }
+      noelement.classList.remove("selectedNo");
+      noelement.classList.add("selectedYes");
+      yeselement.classList.add("selectedNo");
+      yeselement.classList.remove("selectedYes");
+    }
+  } else {
+    if(yeselement.classList.contains("selectedNo")) {
+      if(!nsfwSettingChanged) {
+        nsfwSettingChanged = true;
+      }
+      yeselement.classList.remove("selectedNo");
+      yeselement.classList.add("selectedYes");
+      noelement.classList.add("selectedNo");
+      noelement.classList.remove("selectedYes");
+    }
+  }
+}
+function confirmSettings() {
+  //TODO TODO TODO TODO
+}
+function toggleSettingsWindow () {
+  if(!settingsShown) {
+    nsfwSettingChanged = false;
+    tagSettingChanged = false;
+    var settingsTagsExcluded = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
+    var i;
+    var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
+    for(i = 0; i < filetypes.length; i += 1) {
+      if(document.getElementById('excludefiletype' + filetypes[i]).classList.contains("excludedFiletype")) {
+        document.getElementById('excludefiletype' + filetypes[i]).classList.remove("excludedFiletype");
+        document.getElementById('excludefiletype' + filetypes[i]).classList.add("includedFiletype");
+      }
+    }
+    for(i = 0; i < settingsTagsExcluded.length; i += 1) {
+      var filetype = settingsTagsExcluded[i].name.substring(7);
+      document.getElementById('excludefiletype' + filetype).classList.remove("includedFiletype");
+      document.getElementById('excludefiletype' + filetype).classList.add("excludedFiletype");
+    }
+    if(document.getElementById('excludeNsfwYes').classList.contains("excludedFiletype")) {
+      document.getElementById('excludeNsfwYes').classList.remove("excludedFiletype");
+      document.getElementById('excludeNsfwYes').classList.add("includedFiletype");
+    }
+    if(document.getElementById('excludeNsfwNo').classList.contains("excludedFiletype")) {
+      document.getElementById('excludeNsfwNo').classList.remove("excludedFiletype");
+      document.getElementById('excludeNsfwNo').classList.add("includedFiletype");
+    }
+    var settingsNsfwExcluded = db.prepare('SELECT value FROM settings WHERE name = ?;').get('hidensfw');
+    if(settingsNsfwExcluded.value == 1) {
+      if(document.getElementById('excludeNsfwNo').classList.contains("selectedYes")) {
+        document.getElementById('excludeNsfwNo').classList.remove("selectedYes");
+        document.getElementById('excludeNsfwNo').classList.add("selectedNo");
+        document.getElementById('excludeNsfwYes').classList.add("selectedYes");
+        document.getElementById('excludeNsfwYes').classList.remove("selectedNo");
+      }
+    } else {
+      if(document.getElementById('excludeNsfwYes').classList.contains("selectedYes")) {
+        document.getElementById('excludeNsfwYes').classList.remove("selectedYes");
+        document.getElementById('excludeNsfwYes').classList.add("selectedNo");
+        document.getElementById('excludeNsfwNo').classList.add("selectedYes");
+        document.getElementById('excludeNsfwNo').classList.remove("selectedNo");
+      }
+    }
+    showOverlay();
+    var anim = setInterval(animateShowOverlay, 5);
+    var opa = 0;
+    document.getElementById('settingsArea').style.display = "block";
+    function animateShowOverlay() {
+      if(opa < 1) {
+        opa += 0.05;
+        document.getElementById('settingsArea').style.opacity = opa;
+      } else {
+        clearInterval(anim);
+      }
+    }
+    settingsShown = true;
+  } else {
+    hideOverlay();
+    var anim = setInterval(animateHideOverlay, 5);
+    var opa = 1;
+    function animateHideOverlay() {
+      if(opa > 0) {
+        opa -= 0.05;
+        document.getElementById('settingsArea').style.opacity = opa;
+      } else {
+        clearInterval(anim);
+        document.getElementById('settingsArea').style.display = "none";
+      }
+    }
+    settingsShown = false;
+  }
 }
 function filterFiletype (filetype) {
   var i;
@@ -295,7 +427,7 @@ function openDetails(picid) {
   var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
   var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
   if(extension == "mp4" || extension == "webm") {
-    document.getElementById('filepreview').innerHTML = "<video id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
+    document.getElementById('filepreview').innerHTML = "<video onclick=\"if(this.paused){this.play();} else {this.pause();}\" id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
   } else {
     document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
   }
@@ -779,9 +911,9 @@ function hideOverlay() {
       document.getElementById('translucentOverlay').style.opacity = opa;
     } else {
       clearInterval(anim);
+      document.getElementById('translucentOverlay').style.display = "none";
     }
   }
-  document.getElementById('translucentOverlay').style.display = "none";
 }
 function loadMorePictures() {
   if(canLoadMore) {
