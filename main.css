@@ -544,9 +544,6 @@ html,body {
   //opacity: 1;
   font-size: 0.9em;
 }
-#settingsPopup {
-  color: white;
-}
 .settingsFileExclude {
   background-color: #bbbbbb;
   padding: 5px;
@@ -576,7 +573,6 @@ html,body {
 }
 .popUpDialogueWrapper {
   min-height: 100px;
-  width: 330px;
   background-color: #1f1f1f;
   position: relative;
   left: 50%;
@@ -585,12 +581,24 @@ html,body {
   -webkit-transform: translate(-50%, -50%);
   border: 1px solid black;
 }
+#settingsWrapper {
+  width: 330px;
+}
+#editTagsDialogueWrapper {
+  width: 281px;
+}
 .popUpDialogue {
-  min-height: 80px;
-  width: 290px;
   position: relative;
   text-align: left;
   margin: 20px;
+  min-height: 80px;
+}
+#editTagsDialogue {
+  width: 241px;
+}
+#settingsPopup {
+  color: white;
+  width: 290px;
 }
 #editTagsCloseButton {
   position: absolute;

@@ -6,6 +6,7 @@ const xxh = require('xxhash');
 const path = require('path');
 const outclick = require('outclick');
 const moment = require('moment');
+const chokidar = require('chokidar');
 var contextmenuelement;
 var piccount;
 var lastX;
@@ -26,6 +27,7 @@ var canLoadMore;
 var tagSettingChanged;
 var nsfwSettingChanged;
 var settingsExcludedFiletypes;
+var watcher;
 var orderBy = "datetime(timeAdded)";
 var sortingOrder = "DESC";
 var editTagsArray = [];
@@ -33,16 +35,17 @@ var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
 var searchArrayExc = [];
 var excludedFiletypes = [];
+var renamedmovedfiles = [];
 var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
 var pictureClientSize = 210;
-var loadnew = true;
 var pictureid = 0;
-var firstRun = true;
 var xxhashsalt = 4152;
-var sqlalreadysetup = false;
 var lastZ = 0;
-var tagListExpanded = false;
 var pictureScale = 1;
+var firstRun = true;
+var loadnew = true;
+var tagListExpanded = false;
+var sqlalreadysetup = false;
 var clearTagButtonShown = false;
 var sortingDropdownShown = false;
 var orderDropdownShown = false;
@@ -90,18 +93,9 @@ function init() {
     window.close();
   });
   if(firstRun) {
-    document.getElementById("mainpage").style.display = "none";
-    document.getElementById("greyboxr").style.backgroundColor = "#282828";
-    document.getElementById("greyboxl").style.backgroundColor = "#282828";
-    document.getElementById("setupcontent").innerHTML = "Welcome!<br /><br />It looks like you don\'t have any folders set up yet. Please select the folder that contains your Reaction Pictures.<br /><br /><br /><button id=\"browsefolder\" class=\"roundbutton\">Select Folder</button><br /><br /><br /><div id=\"filetype-hint\">Supported Filetypes: .jpg .jpeg .png .gif .webm .mp4</div>";
-    document.getElementById("browsefolder").addEventListener("click", function() {
-      dialog.showOpenDialog({properties:["openDirectory"]}, checkPictures);
-    });
-    document.getElementById("overlay").style.display = "block";
-    document.getElementById("setup").style.display = "block";
     if(!sqlalreadysetup) {
       db.pragma("journal_mode = WAL");
-      db.prepare("CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, filetype text, rating integer, hash text unique, excluded integer, timeAdded integer, unique(path, filename));").run();
+      db.prepare("CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, filetype text, rating integer, hash text unique, excluded integer, available integer, timeAdded integer, unique(path, filename));").run();
       db.prepare("CREATE TABLE tags (tag text, id int, unique(tag, id));").run();
       db.prepare("CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);").run();
       db.prepare("CREATE TABLE settings (name text pimary key, value integer);").run();
@@ -112,6 +106,16 @@ function init() {
       db.prepare("INSERT INTO settings VALUES ('excludemp4', 0);").run();
       db.prepare("INSERT INTO settings VALUES ('excludewebm', 0);").run();
     }
+    document.getElementById("mainpage").style.display = "none";
+    document.getElementById("options").style.display = "none";
+    document.getElementById("greyboxr").style.backgroundColor = "#282828";
+    document.getElementById("greyboxl").style.backgroundColor = "#282828";
+    document.getElementById("setupcontent").innerHTML = "Welcome!<br /><br />It looks like you don\'t have any folders set up yet. Please select the folder that contains your Reaction Pictures.<br /><br /><br /><button id=\"browsefolder\" class=\"roundbutton\">Select Folder</button><br /><br /><br /><div id=\"filetype-hint\">Supported Filetypes: .jpg .jpeg .png .gif .webm .mp4</div>";
+    document.getElementById("browsefolder").addEventListener("click", function() {
+      dialog.showOpenDialog({properties:["openDirectory"]}, checkPictures);
+    });
+    document.getElementById("overlay").style.display = "block";
+    document.getElementById("setup").style.display = "block";
   } else {
     var settingsEFQuery = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
     var i;
@@ -129,12 +133,18 @@ function init() {
         document.getElementById('filetype' + excludedFiletypes[i]).classList.add("excludedFiletype");
       }
     }
-    if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
-      searchArrayExc.push("nsfw");
+    var picDirectories = db.prepare('SELECT directory FROM directories WHERE watch = ?;').all(1);
+    watcher = chokidar.watch(picDirectories[0].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true}).on('all', (event, path) => {
+        fileChange(event, path);
+      });
+    for(i = 1; i < picDirectories.length; i += 1) {
+      watcher.add(picDirectories[i].directory);
     }
     removeElementById("setup");
     loadPictures();
-  }
+    if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
+      searchArrayExc.push("nsfw");
+    }
     document.getElementById("mainpagecontent").addEventListener("scroll", function() {
       scrollFunctions();
     });
@@ -142,6 +152,62 @@ function init() {
       scrollFunctions();
     });
     document.getElementById("mainpageoverlay").style.display = "none";
+  }
+}
+function fileChange(event, file) {
+  console.log(event, file);
+  var picpath = file.substring(0, file.lastIndexOf("\\"));
+  var filename = file.split('\\').pop();
+  if(event == "add") {
+    var filehash = xxh.hash64(fs.readFileSync(file), xxhashsalt, 'hex');
+    var amountQuery = db.prepare('SELECT count(*),available FROM pictures WHERE hash = ?;').get(filehash);
+    if(amountQuery["count(*)"] > 0 && amountQuery.available == 1) {
+      renamedmovedfiles.push({filename: filename, path: picpath, filehash: filehash});
+    } else if(amountQuery["count(*)"] > 0 && amountQuery.available == 0) {
+      db.prepare("UPDATE pictures SET filename = ?, path = ?, available = ? WHERE hash = ?;").run(filename, picpath, 1, filehash);
+      loadPictures();
+    } else {
+      addFile(file, filehash);
+    }
+  } else if (event == "change") {
+    var filehash = xxh.hash64(fs.readFileSync(file), xxhashsalt, 'hex');
+    db.prepare("UPDATE pictures SET hash = ? WHERE path = ? AND filename = ?;").run(filehash, picpath, filename)
+  } else if (event == "unlink") {
+    var i;
+    var moved = false;
+    var renamed = false;
+    var arrayindex;
+    for(i = 0; i < renamedmovedfiles.length; i += 1) {
+      if(filename == renamedmovedfiles[i].filename) {
+        moved = true;
+        arrayindex = i;
+        break;
+      } else if(picpath == renamedmovedfiles[i].path) {
+        renamed = true;
+        arrayindex = i;
+        break;
+      }
+    }
+    if(moved) {
+      db.prepare("UPDATE pictures SET path = ? WHERE filename = ? AND hash = ?;").run(renamedmovedfiles[arrayindex].path, filename, renamedmovedfiles[arrayindex].filehash);
+      renamedmovedfiles.splice(arrayindex, 1);
+    } else if (renamed) {
+      db.prepare("UPDATE pictures SET filename = ? WHERE path = ? AND hash = ?;").run(renamedmovedfiles[arrayindex].filename, picpath, renamedmovedfiles[arrayindex].filehash);
+      renamedmovedfiles.splice(arrayindex, 1);
+    }
+    if(!moved && !renamed) {
+      db.prepare("UPDATE pictures SET available = ? WHERE path = ? and filename = ?;").run(0, picpath, filename);
+    }
+    loadPictures();
+  }
+}
+function addFile (file, filehash, picpath, filename) {
+  var insertquery = 'INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating, filetype, available) VALUES (?,?,?,?,?,?,?,?);';
+  var extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+  if(extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "webm" || extension == "mp4") {
+    db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(file).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
+      loadPictures();
+  }
 }
 function scrollFunctions() {
   var obj = document.getElementById("mainpagecontent");
@@ -533,6 +599,8 @@ function removeTag (tagname, picid, element) {
   removeElement(element.parentNode);
 }
 function openAddTagsDialog(picid) {
+  removeElementById("editTagsInput");
+  document.getElementById('editTagsAddButton').insertAdjacentHTML("beforeBegin", "<input type=\"text\" id=\"editTagsInput\" oninput=\"autocompleteEditTags();\" onfocus=\"autocompleteEditTags();\" onkeypress=\"if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm(" + picid + ");}}\" />");
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
   var i;
@@ -1049,8 +1117,8 @@ function loadPictures() {
         queryadd += " OR ";
       }
     }
-    query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ?" + excludeQuery + " GROUP BY tags.id HAVING count(*) = ? ORDER BY " + orderBy + " " + sortingOrder + ";";
-    pictures = db.prepare(query).all(searchArrayInc, 0, searchArrayInc.length);
+    query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? AND available = ?" + excludeQuery + " GROUP BY tags.id HAVING count(*) = ? ORDER BY " + orderBy + " " + sortingOrder + ";";
+    pictures = db.prepare(query).all(searchArrayInc, 0, 1, searchArrayInc.length);
     if(searchArrayExc.length > 0) {
       queryadd = "";
       for(i = 0; i < searchArrayExc.length; i += 1) {
@@ -1059,8 +1127,8 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ?" + excludeQuery + " GROUP BY tags.id ORDER BY " + orderBy + " " + sortingOrder + ";";
-      excludePictures = db.prepare(query).all(searchArrayExc, 0);
+      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? AND available = ?" + excludeQuery + " GROUP BY tags.id ORDER BY " + orderBy + " " + sortingOrder + ";";
+      excludePictures = db.prepare(query).all(searchArrayExc, 0, 1);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
         for(x = pictures.length-1; x >= 0; x -= 1) {
@@ -1071,7 +1139,7 @@ function loadPictures() {
       }
     }
   } else {
-    pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ?" + excludeQuery + " ORDER BY " + orderBy + " " + sortingOrder + ";").all(0);
+    pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ? AND available = ?" + excludeQuery + " ORDER BY " + orderBy + " " + sortingOrder + ";").all(0, 1);
     if(searchArrayExc.length > 0) {
       queryadd = "";
       for(i = 0; i < searchArrayExc.length; i += 1) {
@@ -1080,8 +1148,8 @@ function loadPictures() {
           queryadd += " OR ";
         }
       }
-      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ?" + excludeQuery + " GROUP BY tags.id ORDER BY " + orderBy + " " + sortingOrder + ";";
-      excludePictures = db.prepare(query).all(searchArrayExc, 0);
+      query = "SELECT * FROM pictures JOIN tags ON tags.id = pictures.id WHERE (" + queryadd + ") AND excluded = ? AND available = ?" + excludeQuery + " GROUP BY tags.id ORDER BY " + orderBy + " " + sortingOrder + ";";
+      excludePictures = db.prepare(query).all(searchArrayExc, 0, 1);
       var x;
       for(i = excludePictures.length-1; i >= 0; i -= 1) {
         for(x = pictures.length-1; x >= 0; x -= 1) {
@@ -1219,7 +1287,7 @@ function addFolder(directory, sub, tag) {
     var tags;
     var id;
     var checkduplicate;
-    var insertquery = 'INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating, filetype) VALUES (?,?,?,?,?,?,?);';
+    var insertquery = 'INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating, filetype, available) VALUES (?,?,?,?,?,?,?,?);';
     if(sub) {
       var directories = getDirectories(directory, false, "");
       for(z = 0; z < directories.length; z += 1) {
@@ -1232,7 +1300,7 @@ function addFolder(directory, sub, tag) {
             filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
             checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
             if(checkduplicate == 0) {
-              db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension);
+              db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
               x += 1;
               if(tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
@@ -1255,7 +1323,7 @@ function addFolder(directory, sub, tag) {
         filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
         checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
         if(checkduplicate == 0) {
-          db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension);
+          db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
           x += 1;
         }
       }
@@ -1268,12 +1336,7 @@ function addFolder(directory, sub, tag) {
       }
     }
     document.getElementById('finishsetup').addEventListener("click", function() {
-      removeElementById('setup');
-      document.getElementById('overlay').style.display = 'none';
-      document.getElementById('mainpage').style.display = "block";
-      document.getElementById('greyboxl').style.backgroundColor = "#1f1f1f";
-      document.getElementById('greyboxr').style.backgroundColor = "#1f1f1f";
-      loadPictures();
+      reload();
     });
   }, 50);
 }

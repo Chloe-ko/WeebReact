@@ -22,9 +22,9 @@
         </div>
         <div id="options">
           <div id="trbuttons">
-            <div id="refreshbutton" class="optionsbutton inlineblock">
+            <div id="refreshbutton" class="optionsbutton inlineblock" onclick="reload();">
               <div class="optionsbuttontext">
-                Refresh
+                Reload
               </div>
             </div><div id="settingsbutton" class="optionsbutton inlineblock" onclick="toggleSettingsWindow();">
               <div class="optionsbuttontext">
@@ -112,7 +112,7 @@
               <div id="editTagsDialogue" class="popUpDialogue">
                 <div id="editTagsAutoWrapper">
                   <div id="editTagsAutocomplete" class="autocomplete"></div>
-                  <input type="text" id="editTagsInput" oninput="autocompleteEditTags();" onfocus="autocompleteEditTags();" onkeypress="if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());}}" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase());" class="editTagsButtons">Add</button>
+                  <input id="editTagsInput" oninput="autocompleteEditTags();" onfocus="autocompleteEditTags();" onkeypress="if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm();}}" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase());" class="editTagsButtons">Add</button>
                 </div>
                 <div id="editTagsListing"></div>
               </div>

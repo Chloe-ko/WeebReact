@@ -6,9 +6,7 @@ Once all the important things are done I'll make the code far cleaner.
 
 TODO:
 
-1.  refresh button to change for directory changes
-    when changes are done while program is off, check changes on startup
-    If pictures are missing from directory and there are new ones, check if they've been renamed using hash
+1.  check for changes on startup
 2.  Selection feature to add/remove tags from multiple pics at once
 3.  Built-in updater
 4.  Drag into window to open details page
@@ -39,6 +37,7 @@ Done: Use folders instead of importing pictures, tag them automatically based on
       Tag-search
       Filter system
       Settings
+      Background File-watcher
 
 
 
