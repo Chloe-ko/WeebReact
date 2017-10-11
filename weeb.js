@@ -117,6 +117,7 @@ function init() {
     document.getElementById("overlay").style.display = "block";
     document.getElementById("setup").style.display = "block";
   } else {
+    removeElementById("setup");
     var settingsEFQuery = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
     var i;
     var filetype;
@@ -140,8 +141,6 @@ function init() {
     for(i = 1; i < picDirectories.length; i += 1) {
       watcher.add(picDirectories[i].directory);
     }
-    removeElementById("setup");
-    loadPictures();
     if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
       searchArrayExc.push("nsfw");
     }
@@ -152,10 +151,96 @@ function init() {
       scrollFunctions();
     });
     document.getElementById("mainpageoverlay").style.display = "none";
+    startupScan();
   }
 }
+function startupScan() {
+  var knownFiles = db.prepare("SELECT id,filename,path,hash,available FROM pictures;").all();
+  var knownFileHashes = [];
+  var i;
+  for(i = 0; i < knownFiles.length; i += 1) {
+    knownFileHashes.push(knownFiles[i].hash);
+  }
+  var picDirectories = db.prepare("SELECT directory,includeSubdirectories FROM directories;").all();
+  var newFiles = [];
+  var files = [];
+  var x;
+  for(i = 0; i < picDirectories.length; i += 1) {
+    if(picDirectories[i].includeSubdirectories == 1) {
+      var subDirectories = getDirectories(picDirectories[i].directory);
+      for(x = 0; x < subDirectories.length; x += 1) {
+        files = files.concat(getFiles(picDirectories[i].directory + "\\" + subDirectories[x]));
+      }
+      dirList = [];
+    }
+    files = files.concat(getFiles(picDirectories[i].directory));
+  }
+  var fileHashes = [];
+  var extension;
+  for(i = files.length - 1; i >= 0; i -= 1) {
+    extension = files[i].substr(files[i].lastIndexOf('.') + 1).toLowerCase();
+    if(!(extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "webm" || extension == "mp4")) {
+      files.splice(i, 1);
+    }
+  }
+  var filehash;
+  for(i = 0; i < files.length; i += 1) {
+    filehash = xxh.hash64(fs.readFileSync(files[i]), xxhashsalt, 'hex');
+    if(fileHashes.indexOf(filehash) == -1) {
+      fileHashes.push(filehash);
+    } else {
+      files.splice(i, 1);
+      i -= 1;
+    }
+  }
+  var hashindex;
+  var picpath;
+  var filename;
+  var tempfile;
+  for(i = knownFileHashes.length - 1; i >= 0; i -= 1) {
+    hashindex = fileHashes.indexOf(knownFileHashes[i]);
+    if(hashindex != -1) {
+      picpath = files[hashindex].substring(0, files[hashindex].lastIndexOf("\\"));
+      filename = files[hashindex].split('\\').pop();
+      if(filename != knownFiles[i].filename || picpath != knownFiles[i].path) {
+        tempfile = db.prepare("SELECT * FROM pictures WHERE hash = ?;").get(knownFileHashes[i]);
+        db.prepare("DELETE FROM pictures WHERE hash = ?;").run(knownFileHashes[i]);
+        db.prepare('INSERT INTO pictures (id, filename, path, hash, excluded, timeAdded, rating, filetype, available) VALUES (?,?,?,?,?,?,?,?,?);').run(tempfile.id, filename, picpath, knownFileHashes[i], tempfile.excluded, tempfile.timeAdded, tempfile.rating, tempfile.filetype, tempfile.available);
+      }
+      if(knownFiles[i].available == 0) {
+        db.prepare("UPDATE pictures SET available = ? WHERE hash = ?;").run(1, knownFileHashes[i]);
+      }
+      knownFiles.splice(i, 1);
+      knownFileHashes.splice(i, 1);
+      files.splice(hashindex, 1);
+      fileHashes.splice(hashindex, 1);
+    }
+  }
+  for(i = knownFiles.length - 1; i >= 0; i -= 1) {
+    for(x = files.length - 1; x >= 0; x -= 1) {
+      if(files[x] == knownFiles[i].path + "\\" + knownFiles[i].filename) {
+        db.prepare("UPDATE pictures SET hash = ? WHERE path = ? AND filename = ?;").run(fileHashes[x], knownFiles[i].path, knownFiles[i].filename);
+        files.splice(x, 1);
+        fileHashes.splice(x, 1);
+        knownFiles.splice(i, 1);
+        knownFileHashes.splice(i, 1);
+        break;
+      }
+    }
+  }
+  for(i = 0; i < knownFiles.length; i += 1) {
+    db.prepare("UPDATE pictures SET available = ? WHERE id = ?;").run(0, knownFiles[i].id);
+  }
+  for(i = 0; i < files.length; i += 1) {
+    picpath = files[i].substring(0, files[i].lastIndexOf("\\"));
+    filename = files[i].split('\\').pop();
+    addFile(picpath, filename);
+  }
+  loadPictures();
+  document.getElementById('overlay').style.display = "none";
+  document.getElementById('startupScanScreen').style.display = "none";
+}
 function fileChange(event, file) {
-  console.log(event, file);
   var picpath = file.substring(0, file.lastIndexOf("\\"));
   var filename = file.split('\\').pop();
   if(event == "add") {
@@ -167,7 +252,7 @@ function fileChange(event, file) {
       db.prepare("UPDATE pictures SET filename = ?, path = ?, available = ? WHERE hash = ?;").run(filename, picpath, 1, filehash);
       loadPictures();
     } else {
-      addFile(file, filehash);
+      addFile(picpath, filename);
     }
   } else if (event == "change") {
     var filehash = xxh.hash64(fs.readFileSync(file), xxhashsalt, 'hex');
@@ -201,11 +286,12 @@ function fileChange(event, file) {
     loadPictures();
   }
 }
-function addFile (file, filehash, picpath, filename) {
+function addFile (picpath, filename) {
+  var filehash = xxh.hash64(fs.readFileSync(picpath + "\\" + filename), xxhashsalt, 'hex');
   var insertquery = 'INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating, filetype, available) VALUES (?,?,?,?,?,?,?,?);';
   var extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
   if(extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "webm" || extension == "mp4") {
-    db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(file).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
+    db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(picpath + "\\" + filename).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
       loadPictures();
   }
 }
@@ -1341,7 +1427,7 @@ function addFolder(directory, sub, tag) {
   }, 50);
 }
 function getFiles(dir){
-  fileList = [];
+  var fileList = [];
   var files = fs.readdirSync(dir);
   var i;
   for(i = 0; i < files.length; i+=1){
@@ -1369,4 +1455,5 @@ document.onreadystatechange = function () {
 };
 window.onbeforeunload = function() {
   db.close();
+  watcher.close();
 };
