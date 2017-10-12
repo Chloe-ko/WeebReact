@@ -14,7 +14,8 @@ function createWindow() {
     event.preventDefault();
   });
   win.on('closed', () => {
-    win = null
+    win = null;
+    app.quit();
   });
   ipcMain.on('reload', function() {
     win.reload();
@@ -22,7 +23,7 @@ function createWindow() {
   win.on('ready-to-show', function() {
     win.show()
   });
-  win.webContents.openDevTools();
+  //win.webContents.openDevTools();
 }
 app.on('ready', createWindow);
 ipcMain.on('ondragstart', (event,filePath) => {

@@ -1,5 +1,8 @@
 const sql = require('better-sqlite3');
 const fs = require('fs');
+if(!fs.existsSync("package.json")) {
+  process.chdir('resources/app');
+}
 const {remote, ipcRenderer, shell, clipboard} = require('electron');
 const dialog = remote.require('electron').dialog;
 const xxh = require('xxhash');
@@ -7,6 +10,8 @@ const path = require('path');
 const outclick = require('outclick');
 const moment = require('moment');
 const chokidar = require('chokidar');
+const packagejson = fs.readFileSync("package.json");
+const jsonContent = JSON.parse(packagejson);
 var contextmenuelement;
 var piccount;
 var lastX;
@@ -22,7 +27,6 @@ var expandAnim;
 var sortingDropdownHide;
 var orderDropdownHide;
 var filterDropdownHide;
-var fileDetailsId;
 var canLoadMore;
 var tagSettingChanged;
 var nsfwSettingChanged;
@@ -36,6 +40,8 @@ var searchArrayInc = [];
 var searchArrayExc = [];
 var excludedFiletypes = [];
 var renamedmovedfiles = [];
+var copiedFiles = [];
+var selectedPictures = [];
 var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
 var pictureClientSize = 210;
 var pictureid = 0;
@@ -50,8 +56,10 @@ var clearTagButtonShown = false;
 var sortingDropdownShown = false;
 var orderDropdownShown = false;
 var filterDropdownShown = false;
+var aboutPageShown = false;
 var fileDetailsOpen = false;
 var settingsShown = false;
+var multiSelectionActive = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
@@ -71,10 +79,14 @@ function countPics() {
   piccount = pictures.length;
   setContainerheight();
 }
+function openURL(url) {
+  shell.openExternal(url);
+}
 function setContainerheight () {
   document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*pictureClientSize)))*(pictureScale*pictureClientSize) + "px";
 }
 function init() {
+  document.getElementById("aboutTitle").innerHTML = "WeebReact v" + jsonContent.version;
   document.getElementById("minimize-btn").addEventListener("click", function (e) {
     const window = remote.getCurrentWindow();
     window.minimize();
@@ -147,6 +159,7 @@ function init() {
     document.getElementById("mainpagecontent").addEventListener("scroll", function() {
       scrollFunctions();
     });
+    enableDrop();
     window.addEventListener("resize", function() {
       scrollFunctions();
     });
@@ -245,9 +258,13 @@ function fileChange(event, file) {
   var filename = file.split('\\').pop();
   if(event == "add") {
     var filehash = xxh.hash64(fs.readFileSync(file), xxhashsalt, 'hex');
-    var amountQuery = db.prepare('SELECT count(*),available FROM pictures WHERE hash = ?;').get(filehash);
+    var amountQuery = db.prepare('SELECT filename,path,count(*),available FROM pictures WHERE hash = ?;').get(filehash);
     if(amountQuery["count(*)"] > 0 && amountQuery.available == 1) {
-      renamedmovedfiles.push({filename: filename, path: picpath, filehash: filehash});
+      if(fs.existsSync(amountQuery.path + "\\" + amountQuery.filename)) {
+        copiedFiles.push({filename: filename, path: picpath});
+      } else {
+        renamedmovedfiles.push({filename: filename, path: picpath, filehash: filehash});
+      }
     } else if(amountQuery["count(*)"] > 0 && amountQuery.available == 0) {
       db.prepare("UPDATE pictures SET filename = ?, path = ?, available = ? WHERE hash = ?;").run(filename, picpath, 1, filehash);
       loadPictures();
@@ -261,6 +278,7 @@ function fileChange(event, file) {
     var i;
     var moved = false;
     var renamed = false;
+    var copied = false;
     var arrayindex;
     for(i = 0; i < renamedmovedfiles.length; i += 1) {
       if(filename == renamedmovedfiles[i].filename) {
@@ -273,14 +291,20 @@ function fileChange(event, file) {
         break;
       }
     }
-    if(moved) {
+    for(i = 0; i < copiedFiles.length; i += 1) {
+      if(filename == copiedFiles[i].filename && picpath == copiedFiles[i].path) {
+        copied = true;
+        copiedFiles.splice(i, 1);
+      }
+    }
+    if(moved && !copied) {
       db.prepare("UPDATE pictures SET path = ? WHERE filename = ? AND hash = ?;").run(renamedmovedfiles[arrayindex].path, filename, renamedmovedfiles[arrayindex].filehash);
       renamedmovedfiles.splice(arrayindex, 1);
-    } else if (renamed) {
+    } else if (renamed && !copied) {
       db.prepare("UPDATE pictures SET filename = ? WHERE path = ? AND hash = ?;").run(renamedmovedfiles[arrayindex].filename, picpath, renamedmovedfiles[arrayindex].filehash);
       renamedmovedfiles.splice(arrayindex, 1);
     }
-    if(!moved && !renamed) {
+    if(!moved && !renamed && !copied) {
       db.prepare("UPDATE pictures SET available = ? WHERE path = ? and filename = ?;").run(0, picpath, filename);
     }
     loadPictures();
@@ -569,13 +593,15 @@ function scrollingTopside(obj, picsPerLine) {
   }
 }
 function showInFolder (id) {
-  return shell.showItemInFolder(picPaths[id]);
+  var picFilePath = db.prepare("SELECT filename, path FROM pictures WHERE id = ?;").get(id);
+  return shell.showItemInFolder(picFilePath.path + "\\" + picFilePath.filename);
 }
 function getCursorPosition(e) {
   return [(window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft), (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)];
 }
 function copyLocation(id) {
-  clipboard.writeText(picPaths[id]);
+  var picFilePath = db.prepare("SELECT filename, path FROM pictures WHERE id = ?;").get(id);
+  clipboard.writeText(picFilePath.path + "\\" + picFilePath.filename);
 }
 function showContextMenu(event, el, picid) {
   var contextmenu = document.getElementById('contextmenu');
@@ -633,50 +659,109 @@ function closeFileDetails() {
     }
   }
 }
-function openDetails(picid) {
-  fileDetailsOpen = true;
-  fileDetailsId = picid;
-  var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(pictureidarray[picid]);
-  var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
-  var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-  var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-  if(extension == "mp4" || extension == "webm") {
-    document.getElementById('filepreview').innerHTML = "<video onclick=\"if(this.paused){this.play();} else {this.pause();}\" id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
-  } else {
-    document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
-  }
-  var details = [];
-  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
-  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
-  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
-  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment(pic.timeAdded, "YYYY-MM-DD HH:mm:ss").format("DD/MM/YYYY") + "</div></div></div><br /><br />");
-  var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(pictureidarray[picid]);
-  var tagHtml = "";
-  var i;
-  document.getElementById('detailsShowInFolderButton').onclick = function() {
-    showInFolder(picid);
-  };
-  document.getElementById('detailsCopyLocationButton').onclick = function() {
-    copyLocation(picid);
-  };
-  for(i = 0; i < tags.length; i += 1) {
-    tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
-  }
-  details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
-  var i;
-  for(i = 0; i < details.length; i += 1) {
-    document.getElementById('filedetails').innerHTML += details[i];
-  }
-  document.getElementById('fileDetailsDetails').innerHTML += "<div id=\"fileDetailsAddTags\" class=\"picTagListing picAddTagListing\" onclick=\"openAddTagsDialog(\'" + pic.id + "\')\"><div class=\"picTagText picTagTextAdd\">\+</div></div>";
-  document.getElementById('details').style.display = "block";
-  var anim = setInterval(animateOpenDetails, 5);
-  var opa = 0;
-  function animateOpenDetails() {
-    if(document.getElementById('details').style.opacity == "1") {
-      clearInterval(anim);
+function toggleMultiSelection() {
+  if(!fileDetailsOpen) {
+    var i;
+    if(!multiSelectionActive) {
+      document.getElementById("selectMultipleButtonText").innerHTML = "Cancel";
+      document.getElementById("multiSelectionAddTagsButton").style.visibility = "visible";
+      document.getElementById("multiSelectionRemoveTagsButton").style.visibility = "visible";
+      document.getElementById("multiSelectionClearSelectionButton").style.visibility = "visible";
+      document.getElementById("multiSelectionCounter").style.visibility = "visible";
+      for(i = 0; i < pictureid; i += 1) {
+        document.getElementById('picture' + i).classList.add("notSelectedImage");
+      }
+      multiSelectionActive = true;
     } else {
-      opa += 0.05;
-      document.getElementById('details').style.opacity = opa;
+      document.getElementById("selectMultipleButtonText").innerHTML = "Select multiple";
+      document.getElementById("multiSelectionAddTagsButton").style.visibility = "hidden";
+      document.getElementById("multiSelectionRemoveTagsButton").style.visibility = "hidden";
+      document.getElementById("multiSelectionClearSelectionButton").style.visibility = "hidden";
+      document.getElementById("multiSelectionCounter").style.visibility = "hidden";
+      for(i = 0; i < pictureid; i += 1) {
+        if(document.getElementById('picture' + i).classList.contains("notSelectedImage")) {
+          document.getElementById('picture' + i).classList.remove("notSelectedImage");
+        } else {
+          document.getElementById('picture' + i).classList.remove("selectedImage");
+        }
+      }
+      selectedPictures = [];
+      document.getElementById("multiSelectionCounter").innerHTML = "Pictures selected: " + selectedPictures.length;
+      multiSelectionActive = false;
+    }
+  }
+}
+function multiSelectionClear() {
+  var i;
+  for(i = 0; i < selectedPictures.length; i += 1) {
+    document.getElementById("picture" + selectedPictures[i]).classList.remove("selectedImage");
+    document.getElementById("picture" + selectedPictures[i]).classList.add("notSelectedImage");
+  }
+  selectedPictures = [];
+  document.getElementById("multiSelectionCounter").innerHTML = "Pictures selected: " + selectedPictures.length;
+}
+function multiSelectionAction(action) {
+  if(selectedPictures.length > 0) {
+    openAddTagsDialog(action, selectedPictures);
+  }
+}
+function openDetails(picdbid) {
+  var picid = pictureidarray.indexOf(picdbid);
+  if(multiSelectionActive) {
+    if(selectedPictures.indexOf(picid) == -1) {
+      document.getElementById("picture" + picid).classList.add("selectedImage");
+      document.getElementById("picture" + picid).classList.remove("notSelectedImage");
+      selectedPictures.push(picid);
+    } else {
+      document.getElementById("picture" + picid).classList.remove("selectedImage");
+      document.getElementById("picture" + picid).classList.add("notSelectedImage");
+      selectedPictures.splice(selectedPictures.indexOf(picid), 1);
+    }
+    document.getElementById("multiSelectionCounter").innerHTML = "Pictures selected: " + selectedPictures.length;
+  } else {
+    var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(picdbid);
+    fileDetailsOpen = true;
+    var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
+    var picPath = pic.path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+    var picFileName = pic.filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+    if(extension == "mp4" || extension == "webm") {
+      document.getElementById('filepreview').innerHTML = "<video onclick=\"if(this.paused){this.play();} else {this.pause();}\" id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picdbid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"filepreview\" loop autoplay><source src=\"" + pic.path + "\\" + pic.filename + "\" type=\"video/" + extension + "\"></video>";
+    } else {
+      document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picdbid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
+    }
+    var details = [];
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment(pic.timeAdded, "YYYY-MM-DD HH:mm:ss").format("DD/MM/YYYY") + "</div></div></div><br /><br />");
+    var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picdbid);
+    var tagHtml = "";
+    var i;
+    document.getElementById('detailsShowInFolderButton').onclick = function() {
+      showInFolder(picdbid);
+    };
+    document.getElementById('detailsCopyLocationButton').onclick = function() {
+      copyLocation(picdbid);
+    };
+    for(i = 0; i < tags.length; i += 1) {
+      tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
+    }
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
+    var i;
+    for(i = 0; i < details.length; i += 1) {
+      document.getElementById('filedetails').innerHTML += details[i];
+    }
+    document.getElementById('fileDetailsDetails').innerHTML += "<div id=\"fileDetailsAddTags\" class=\"picTagListing picAddTagListing\" onclick=\"openAddTagsDialog('add', \'" + pic.id + "\')\"><div class=\"picTagText picTagTextAdd\">\+</div></div>";
+    document.getElementById('details').style.display = "block";
+    var anim = setInterval(animateOpenDetails, 5);
+    var opa = 0;
+    function animateOpenDetails() {
+      if(document.getElementById('details').style.opacity == "1") {
+        clearInterval(anim);
+      } else {
+        opa += 0.05;
+        document.getElementById('details').style.opacity = opa;
+      }
     }
   }
 }
@@ -684,11 +769,19 @@ function removeTag (tagname, picid, element) {
   db.prepare('DELETE FROM tags WHERE tag = ? AND id = ?;').run(tagname, picid);
   removeElement(element.parentNode);
 }
-function openAddTagsDialog(picid) {
+function openAddTagsDialog(action, picid) {
+  var multiSelection = false;
+  if(picid instanceof Array) {
+    multiSelection = true;
+  }
   removeElementById("editTagsInput");
-  document.getElementById('editTagsAddButton').insertAdjacentHTML("beforeBegin", "<input type=\"text\" id=\"editTagsInput\" oninput=\"autocompleteEditTags();\" onfocus=\"autocompleteEditTags();\" onkeypress=\"if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm(" + picid + ");}}\" />");
+  document.getElementById('editTagsAddButton').insertAdjacentHTML("beforeBegin", "<input type=\"text\" id=\"editTagsInput\" oninput=\"autocompleteEditTags();\" onfocus=\"autocompleteEditTags();\" onkeypress=\"if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm(\'" + action + "\', [" + picid + "], " + multiSelection + ");}}\" />");
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
-  editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
+  if(!multiSelection) {
+    editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
+  } else {
+    editTagsAlreadyAssigned = [];
+  }
   var i;
   var z;
   for(i = 0; i < tagsForAutocomplete.length; i += 1) {
@@ -699,7 +792,7 @@ function openAddTagsDialog(picid) {
     }
   }
   document.getElementById('editTagsConfirm').onclick = function() {
-    editTagsConfirm(picid);
+    editTagsConfirm(action, picid, multiSelection);
   };
   document.getElementById('translucentOverlay').style.display = "block";
   document.getElementById('editTagsDialogueArea').style.display = "block";
@@ -716,15 +809,57 @@ function openAddTagsDialog(picid) {
   }
   document.getElementById('editTagsInput').focus();
 }
-function editTagsConfirm (picid) {
+function editTagsConfirm (action, picid, multi) {
   var i;
+  var x;
+  var query = "INSERT INTO tags (tag, id) VALUES (?, ?);";
+  if(multi) {
+    var picidlength = picid.length;
+  } else {
+    var picidlength = 1;
+  }
+  if(action == "remove") {
+    query = "DELETE FROM tags WHERE tag = ? AND id = ?;";
+  }
   for(i = 0; i < editTagsArray.length; i += 1) {
-    db.prepare('INSERT INTO tags (tag, id) VALUES (?, ?);').run(editTagsArray[i], picid);
-    if(fileDetailsOpen) {
-      document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" oncontextmenu=\"addSearchTag(\'" + editTagsArray[i] + "\', true);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + editTagsArray[i] + "\', \'" + picid + "\', this)\" /></div>");
+    for(x = 0; x < picidlength; x += 1) {
+      var cont = true;
+      if(action == "add" && multi) {
+        if(db.prepare("SELECT count(*) FROM tags WHERE tag = ? AND id = ?;").get(editTagsArray[i], pictureidarray[picid[x]])["count(*)"] > 0) {
+          cont = false;
+        }
+      } else if(action == "remove" && multi) {
+        if(db.prepare("SELECT count(*) FROM tags WHERE tag = ? AND id = ?;").get(editTagsArray[i], pictureidarray[picid[x]])["count(*)"] == 0) {
+          cont = false;
+        }
+      }
+      if(multi && cont) {
+        db.prepare(query).run(editTagsArray[i], pictureidarray[picid[x]]);
+      } else if(!multi) {
+        db.prepare(query).run(editTagsArray[i], picid);
+      }
+      if(fileDetailsOpen) {
+        document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" oncontextmenu=\"addSearchTag(\'" + editTagsArray[i] + "\', true);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + editTagsArray[i] + "\', \'" + picid + "\', this)\" /></div>");
+      } else if(multiSelectionActive) {
+        multiSelectionClear();
+      }
     }
   }
+  tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   hideEditTagsDialogue();
+}
+function allowDrop(ev) {
+  ev.preventDefault();
+}
+function drop(ev) {
+  ev.preventDefault();
+  var data = ev.dataTransfer.files;
+  if(data.length == 1) {
+    var droppedPic = db.prepare("SELECT id, count(*) FROM pictures WHERE filename = ? AND path = ?;").get(data[0].name, data[0].path.substring(0, data[0].path.lastIndexOf("\\")));
+    if(droppedPic["count(*)"] == 1) {
+      openDetails(droppedPic.id);
+    }
+  }
 }
 function autocompleteEditTags () {
   var value = document.getElementById('editTagsInput').value;
@@ -1130,6 +1265,37 @@ function showOverlay() {
     }
   }
 }
+function toggleAboutPage() {
+  if(!aboutPageShown) {
+    aboutPageShown = true;
+    showOverlay();
+    var opa = 0;
+    document.getElementById("aboutArea").style.display = "block";
+    var anim = setInterval(animateShowAbout, 5);
+    function animateShowAbout() {
+      if(opa < 1) {
+        opa += 0.05;
+        document.getElementById("aboutArea").style.opacity = opa;
+      } else {
+        clearInterval(anim);
+      }
+    }
+  } else {
+    aboutPageShown = false;
+    hideOverlay();
+    var opa = 1;
+    var anim = setInterval(animateHideAbout, 5);
+    function animateHideAbout() {
+      if(opa > 0) {
+        opa -= 0.05;
+        document.getElementById("aboutArea").style.opacity = opa;
+      } else {
+        clearInterval(anim);
+        document.getElementById("aboutArea").style.display = "none";
+      }
+    }
+  }
+}
 function hideOverlay() {
   var anim = setInterval(animateHideOverlay, 5);
   var opa = 0.5;
@@ -1158,12 +1324,15 @@ function loadMorePictures() {
       picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
       if(extension == "mp4" || extension == "webm") {
-        document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>");
+        document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>");
       } else {
-        document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
+        document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
       }
       picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
       pictureidarray.push(pictures[i].id);
+      if(multiSelectionActive) {
+        document.getElementById("picture" + pictureid).classList.add("notSelectedImage");
+      }
       pictureid += 1;
     }
   }
@@ -1259,9 +1428,9 @@ function loadPictures() {
     picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
     extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
     if(extension == "webm" || extension == "mp4") {
-      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
+      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
     } else {
-      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictureid + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictureid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
+      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
     }
     picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
     pictureidarray.push(pictures[i].id);
@@ -1442,8 +1611,17 @@ function getFiles(dir){
   return fileList;
 }
 function drag(event, path) {
+  document.getElementById("content").ondrop = (event) => {};
   event.preventDefault();
   ipcRenderer.send('ondragstart', path);
+  setTimeout(function() {
+    enableDrop();
+  }, 2000);
+}
+function enableDrop() {
+  document.getElementById("content").ondrop = (event) => {
+    drop(event);
+  };
 }
 function reload() {
   ipcRenderer.send('reload');

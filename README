@@ -6,9 +6,13 @@ Once all the important things are done I'll make the code far cleaner.
 
 TODO:
 
-1.  Selection feature to add/remove tags from multiple pics at once
-2.  Drag into window to open details page
-3.  Built-in updater
+1.  Integrate Squirrel Updater/Installer
+2.  Public release of version 1.0
+3.  Rating Option in Details page
+4.  "Add Tags" and Rating Option in context menu
+5.  add function to list all untagged pictures
+6.  add "directories" category in settings
+
 
 For after important stuff is done:
 
@@ -38,6 +42,9 @@ Done: Use folders instead of importing pictures, tag them automatically based on
       Settings
       Background File-watcher
       Check for changes on start-up
+      Multi-selection for tags
+      Open Details Page when pic dropped into program
+      About page
 
 
 

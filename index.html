@@ -7,7 +7,7 @@
     <script src="weeb.js" type="text/javascript"></script>
   </head>
   <body>
-    <div id="content">
+    <div id="content" ondragover="allowDrop(event);">
       <div id="topbar" oncontextmenu="return false;">
         <div id="blackline"></div>
         <div id="titlebox">
@@ -18,7 +18,7 @@
           <div id="titlebuttons">
             <img draggable="false" src="img/minimize.png" id="minimize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/maximize.png" id="maximize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/close.png" id="close-btn" class="titlebar-btn button-glow" />
           </div>
-          <div id="title">WeebReact</div>
+          <div id="title" onclick="toggleAboutPage();">WeebReact</div>
         </div>
         <div id="options">
           <div id="trbuttons">
@@ -44,6 +44,31 @@
             <div id="autoSearchWrapper" class="inlineblock">
               <input type="text" id="searchbar" placeholder="Search" onfocus="this.placeholder=''; searchAutocomplete(this.value);" onblur="this.placeholder='Search';" oninput="searchAutocomplete(this.value);" onkeypress="if(event.keyCode == 13) {if(this.value != '') {addSearchTag(document.getElementById('searchbar').value.toLowerCase(), false);}}" />
               <div id="searchAutocomplete" class="autocomplete"></div>
+            </div>
+          </div>
+          <div id="selectMultipleArea">
+            <div id="selectMultipleButton" class="optionsbutton inlineblock" onclick="toggleMultiSelection();">
+              <div class="optionsbuttontext" id="selectMultipleButtonText">
+                Select multiple
+              </div>
+            </div>
+            <div id="multiSelectionAddTagsButton" class="optionsbutton inlineblock hidden" onclick="multiSelectionAction('add');">
+              <div class="optionsbuttontext">
+                Add Tags
+              </div>
+            </div>
+            <div id="multiSelectionRemoveTagsButton" class="optionsbutton inlineblock hidden" onclick="multiSelectionAction('remove');">
+              <div class="optionsbuttontext">
+                Remove Tags
+              </div>
+            </div>
+            <div id="multiSelectionClearSelectionButton" class="optionsbutton inlineblock hidden" onclick="multiSelectionClear();">
+              <div class="optionsbuttontext">
+                Clear Selection
+              </div>
+            </div>
+            <div id="multiSelectionCounter" class="inlineblock optionsbuttontext hidden">
+              Pictures selected: 0
             </div>
           </div>
           <div id="sortingOptions">
@@ -119,6 +144,7 @@
           <div id="settingsArea" class="overlayArea">
             <div id="settingsWrapper" class="popUpDialogueWrapper">
               <div id="settingsPopup" class="popUpDialogue">
+                <div id="settingsCloseButton" onclick="toggleSettingsWindow()"></div>
                 <div id="filetypeSettings">
                   Default filetype filter<br /><br />
                   <div id="settingsExcludePng" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeFiletypes('png');"><div id="excludefiletypepng" class="includedFiletype inlineblock"></div><div class="inlineblock filtertext">png</div></div>
@@ -135,6 +161,17 @@
                 <div id="settingsconfirm">
                   <div id="settingsConfirmButton" onclick="confirmSettings();">Confirm</div>
                 </div>
+              </div>
+            </div>
+          </div>
+          <div id="aboutArea" class="overlayArea">
+            <div id="aboutWrapper" class="popUpDialogueWrapper">
+              <div id="aboutPopup" class="popUpDialogue">
+                <div id="aboutTitle" class="aboutBig"></div><br />
+                <div onclick="openURL('https:\/\/shironomia.de\/weebreact\/');" class="inlineblock link">Homepage</div> - <div onclick="openURL('https:\/\/github.com\/Shironomia\/WeebReact');" class="inlineblock link">GitHub</div><br /><br />
+                <div class="aboutBig">By Shironomia</div><br />
+                <div onclick="openURL('http:\/\/funnyjunk.com\/user\/shironomia');" class="inlineblock link">FJ Profile</div> - <div onclick="openURL('mailto\:shironomia\@shironomia.de');" class="inlineblock link">Contact</div><br /><br />
+                <div class="optionsbutton" id="closeAbout" onclick="toggleAboutPage();"><div class="optionsbuttontext" id="closeAboutText">Close</div></div>
               </div>
             </div>
           </div>
