@@ -1,16 +1,18 @@
+const path = require('path');
+module.paths.push(path.resolve(__dirname, '..', '..', '..', '..', 'resources', 'app.asar', 'node_modules'));
 const sql = require('better-sqlite3');
 const fs = require('fs');
-if(!fs.existsSync("package.json")) {
-  process.chdir('resources/app');
-}
 const {remote, ipcRenderer, shell, clipboard} = require('electron');
 const dialog = remote.require('electron').dialog;
 const xxh = require('xxhash');
-const path = require('path');
 const outclick = require('outclick');
 const moment = require('moment');
 const chokidar = require('chokidar');
-const packagejson = fs.readFileSync("package.json");
+if(!fs.existsSync('package.json')) {
+  var packagejson = fs.readFileSync("resources/app.asar/package.json");
+} else {
+  var packagejson = fs.readFileSync("package.json");
+}
 const jsonContent = JSON.parse(packagejson);
 var contextmenuelement;
 var piccount;
@@ -1423,6 +1425,14 @@ function loadPictures() {
   }
   var picPath;
   var picFileName;
+  if(orderBy == "filename") {
+    pictures.sort(function(a, b) {
+      return a.filename.localeCompare(b.filename);
+    });
+  }
+  if(sortingOrder == "ASC" && orderBy == "filename") {
+    pictures.reverse();
+  }
   for(i = 0; i < picAmount; i+=1) {
     picPath = pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
     picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
