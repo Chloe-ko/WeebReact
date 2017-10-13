@@ -8,12 +8,7 @@ const xxh = require('xxhash');
 const outclick = require('outclick');
 const moment = require('moment');
 const chokidar = require('chokidar');
-if(!fs.existsSync('package.json')) {
-  var packagejson = fs.readFileSync("resources/app.asar/package.json");
-} else {
-  var packagejson = fs.readFileSync("package.json");
-}
-const jsonContent = JSON.parse(packagejson);
+const naturalSort = require('node-natural-sort');
 var contextmenuelement;
 var piccount;
 var lastX;
@@ -33,7 +28,7 @@ var canLoadMore;
 var tagSettingChanged;
 var nsfwSettingChanged;
 var settingsExcludedFiletypes;
-var watcher;
+var settingsDirectories;
 var orderBy = "datetime(timeAdded)";
 var sortingOrder = "DESC";
 var editTagsArray = [];
@@ -44,6 +39,7 @@ var excludedFiletypes = [];
 var renamedmovedfiles = [];
 var copiedFiles = [];
 var selectedPictures = [];
+var watcher = [];
 var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
 var pictureClientSize = 210;
 var pictureid = 0;
@@ -62,7 +58,14 @@ var aboutPageShown = false;
 var fileDetailsOpen = false;
 var settingsShown = false;
 var multiSelectionActive = false;
+var restartNeeded = false;
 var appDataFolder = process.env.APPDATA + "\\WeebReact";
+if(!fs.existsSync('package.json')) {
+  var packagejson = fs.readFileSync("resources/app.asar/package.json");
+} else {
+  var packagejson = fs.readFileSync("package.json");
+}
+var jsonContent = JSON.parse(packagejson);
 if(!fs.existsSync(appDataFolder)) {
   fs.mkdirSync(appDataFolder);
 }
@@ -76,6 +79,9 @@ if(!firstRun) {
     firstRun = true;
     sqlalreadysetup = true;
   }
+}
+function reload() {
+  ipcRenderer.send('reload');
 }
 function countPics() {
   piccount = pictures.length;
@@ -148,12 +154,17 @@ function init() {
         document.getElementById('filetype' + excludedFiletypes[i]).classList.add("excludedFiletype");
       }
     }
-    var picDirectories = db.prepare('SELECT directory FROM directories WHERE watch = ?;').all(1);
-    watcher = chokidar.watch(picDirectories[0].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true}).on('all', (event, path) => {
-        fileChange(event, path);
-      });
-    for(i = 1; i < picDirectories.length; i += 1) {
-      watcher.add(picDirectories[i].directory);
+    var picDirectories = db.prepare('SELECT directory, includeSubdirectories FROM directories WHERE watch = ?;').all(1);
+    for(i = 0; i < picDirectories.length; i += 1) {
+      if(picDirectories[i].includeSubdirectories == 1) {
+        watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true}).on('all', (event, path) => {
+          fileChange(event, path);
+        }));
+      } else {
+        watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, depth: 0}).on('all', (event, path) => {
+          fileChange(event, path);
+        }));
+      }
     }
     if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
       searchArrayExc.push("nsfw");
@@ -371,6 +382,7 @@ function toggleSettingsExcludeNSFW (exclude) {
   }
 }
 function confirmSettings() {
+  var i;
   var reloadNeeded = false;
   if(nsfwSettingChanged) {
     var settingsNsfwExcluded = db.prepare('SELECT value FROM settings WHERE name = ?;').get('hidensfw').value;
@@ -396,7 +408,6 @@ function confirmSettings() {
   }
   if(tagSettingChanged) {
     reloadNeeded = true;
-    var i;
     var toBeExcluded;
     var elem;
     for(i = 0; i < filetypes.length; i += 1) {
@@ -427,8 +438,27 @@ function confirmSettings() {
       }
     }
   }
-  if(reloadNeeded) {
+  if(reloadNeeded && !restartNeeded) {
     loadPictures();
+  } else if(restartNeeded) {
+    var x;
+    var dbdirs = db.prepare('SELECT * FROM directories;').all();
+    for(i = 0; i < settingsDirectories.length; i += 1) {
+      for(x = 0; x < dbdirs.length; x += 1) {
+        if(dbdirs[x].directory == settingsDirectories[i].directory) {
+          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].directory);
+          settingsDirectories.splice(i, 1);
+          dbdirs.splice(x, 1);
+        }
+      }
+    }
+    for(i = 0; i < dbdirs.length; i += 1) {
+      db.prepare("DELETE FROM directories WHERE directory = ?;").run(dbdirs[i].directory);
+    }
+    for(i = 0; i < settingsDirectories.length; i += 1) {
+      db.prepare("INSERT INTO directories (directory, includeSubdirectories, watch) VALUES (?, ?, ?);").run(settingsDirectories[i].directory, settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch)
+    }
+    reload();
   }
   toggleSettingsWindow();
 }
@@ -436,6 +466,7 @@ function toggleSettingsWindow () {
   if(!settingsShown) {
     nsfwSettingChanged = false;
     tagSettingChanged = false;
+    restartNeeded = false;
     var settingsTagsExcluded = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
     var i;
     for(i = 0; i < filetypes.length; i += 1) {
@@ -473,6 +504,25 @@ function toggleSettingsWindow () {
         document.getElementById('excludeNsfwNo').classList.remove("selectedNo");
       }
     }
+    var directoryListing = "";
+    settingsDirectories = db.prepare("SELECT * FROM directories;").all();
+    var firstListing;
+    var incSub;
+    var directoryq;
+    for(i = 0; i < settingsDirectories.length; i += 1) {
+      directoryq = settingsDirectories[i].directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      firstListing = "";
+      if(i == 0) {
+        firstListing = " firstDirectoryListing";
+      }
+      if(settingsDirectories[i].includeSubdirectories == 1) {
+        incSub = "incSubYes";
+      } else {
+        incSub = "incSubNo";
+      }
+      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory + "\">" + settingsDirectories[i].directory.split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this);\">Remove</div></div>";
+    }
+    document.getElementById('directoryListingBox').innerHTML = directoryListing;
     showOverlay();
     var anim = setInterval(animateShowOverlay, 5);
     var opa = 0;
@@ -501,6 +551,54 @@ function toggleSettingsWindow () {
     }
     settingsShown = false;
   }
+}
+function toggleIncludeSubdirectories(directory, elm) {
+  var toSet;
+  if(elm.classList.contains("incSubYes")) {
+    toSet = 0;
+    elm.classList.remove("incSubYes");
+    elm.classList.add("incSubNo");
+  } else {
+    toSet = 1;
+    elm.classList.add("incSubYes");
+    elm.classList.remove("incSubNo");
+  }
+  var i;
+  for(i = 0; i < settingsDirectories.length; i += 1) {
+    if(settingsDirectories[i].directory == directory) {
+      settingsDirectories[i].includeSubdirectories = toSet;
+      break;
+    }
+  }
+  restartNeeded = true;
+}
+function removeDirectory(directory, elm) {
+  if(settingsDirectories.length == 1) {
+    alert("You need at least one directory!\nIf you want to change it, please add the new one before removing the old one.");
+  } else {
+    var i;
+    for(i = 0; i < settingsDirectories.length; i += 1) {
+      if(directory == settingsDirectories[i].directory) {
+        settingsDirectories.splice(i, 1);
+        if(elm.parentNode.classList.contains("firstDirectoryListing")) {
+          elm.parentNode.parentNode.children[1].classList.add("firstDirectoryListing");
+        }
+        removeElement(elm.parentNode);
+        break;
+      }
+    }
+    restartNeeded = true;
+  }
+}
+function openAddDirectoryDialog() {
+  dialog.showOpenDialog({properties:["openDirectory"]}, settingsAddDirectory);
+}
+function settingsAddDirectory(directory) {
+  restartNeeded = true;
+  directory = directory[0];
+  settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1});
+  directoryq = directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+  document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory + "\">" + directory.split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
 }
 function filterFiletype (filetype) {
   var i;
@@ -1426,12 +1524,7 @@ function loadPictures() {
   var picPath;
   var picFileName;
   if(orderBy == "filename") {
-    pictures.sort(function(a, b) {
-      return a.filename.localeCompare(b.filename);
-    });
-  }
-  if(sortingOrder == "ASC" && orderBy == "filename") {
-    pictures.reverse();
+    pictures.sort(naturalSort({order: sortingOrder}));
   }
   for(i = 0; i < picAmount; i+=1) {
     picPath = pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
@@ -1633,9 +1726,6 @@ function enableDrop() {
     drop(event);
   };
 }
-function reload() {
-  ipcRenderer.send('reload');
-}
 document.onreadystatechange = function () {
   if (document.readyState == "complete") {
     init();
@@ -1643,5 +1733,8 @@ document.onreadystatechange = function () {
 };
 window.onbeforeunload = function() {
   db.close();
-  watcher.close();
+  var i;
+  for(i = 0; i < watcher.length; i += 1) {
+    watcher[i].close();
+  }
 };

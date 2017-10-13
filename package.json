@@ -1,6 +1,6 @@
 {
   "name": "WeebReact",
-  "version": "0.9.2",
+  "version": "0.9.40",
   "main": "main.js",
   "productName": "WeebReact",
   "author": "Shironomia",
@@ -19,6 +19,7 @@
     "chokidar": "^1.7.0",
     "electron-squirrel-startup": "^1.0.0",
     "moment": "^2.19.0",
+    "node-natural-sort": "^0.8.6",
     "outclick": "^0.1.0",
     "xxhash": "^0.2.4"
   }

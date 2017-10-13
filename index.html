@@ -158,6 +158,19 @@
                   <div id="settingsExcludeNsfwYes" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeNSFW(true);"><div id="excludeNsfwYes" class="selectedYes inlineblock"></div><div class="inlineblock filtertext">Yes</div></div>
                   <div id="settingsExcludeNsfwNo" class="settingsFileExclude inlineblock" onclick="toggleSettingsExcludeNSFW(false);"><div id="excludeNsfwNo" class="selectedNo inlineblock"></div><div class="inlineblock filtertext">No</div></div>
                 </div><br /><br />
+                <div id="directorysettings">
+                  Directories<br /><br />
+                  <div id="directoryListingBox">
+                    <div class="directoryListing firstDirectoryListing">
+                      <div class="directoryName inlineblock" title="C:\Users\Shironomia\Documents\Nextcloud\Reaction Pics and Memes">Reaction Pics and Memes</div>
+                      <div class="incSub inlineblock">
+                        <div class="incSubPic incSubNo" title="Include Subdirectories"></div>
+                      </div>
+                      <div class="removeDir inlineblock">Remove</div>
+                    </div>
+                  </div>
+                  <div id="addDirectory" onclick="openAddDirectoryDialog();" class="optionsbutton"><div id="addDirectoryText" class="optionsbuttontext">Add directory</div></div>
+                </div><br /><br />
                 <div id="settingsconfirm">
                   <div id="settingsConfirmButton" onclick="confirmSettings();">Confirm</div>
                 </div>
@@ -168,7 +181,7 @@
             <div id="aboutWrapper" class="popUpDialogueWrapper">
               <div id="aboutPopup" class="popUpDialogue">
                 <div id="aboutTitle" class="aboutBig"></div><br />
-                <div onclick="openURL('https:\/\/shironomia.de\/weebreact\/');" class="inlineblock link">Homepage</div> - <div onclick="openURL('https:\/\/github.com\/Shironomia\/WeebReact');" class="inlineblock link">GitHub</div><br /><br />
+                <div onclick="openURL('http:\/\/weebreact.shironomia.de');" class="inlineblock link">Homepage</div> - <div onclick="openURL('https:\/\/github.com\/Shironomia\/WeebReact');" class="inlineblock link">GitHub</div><br /><br />
                 <div class="aboutBig">By Shironomia</div><br />
                 <div onclick="openURL('http:\/\/funnyjunk.com\/user\/shironomia');" class="inlineblock link">FJ Profile</div> - <div onclick="openURL('mailto\:shironomia\@shironomia.de');" class="inlineblock link">Contact</div><br /><br />
                 <div class="optionsbutton" id="closeAbout" onclick="toggleAboutPage();"><div class="optionsbuttontext" id="closeAboutText">Close</div></div>

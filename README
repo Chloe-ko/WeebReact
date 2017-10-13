@@ -6,13 +6,10 @@ Once all the important things are done I'll make the code far cleaner.
 
 TODO:
 
-!! fix filename sorting, fix button behind search bar, wide drag area, list tags in edit tags dialogue
-1.  Integrate Squirrel Updater/Installer
-2.  Public release of version 1.0
-3.  Rating Option in Details page
-4.  "Add Tags" and Rating Option in context menu
-5.  add function to list all untagged pictures
-6.  add "directories" category in settings
+!! list tags in edit tags dialogue
+1.  Rating Option in Details page
+2.  "Add Tags" and Rating Option in context menu
+3.  add function to list all untagged pictures
 
 
 For after important stuff is done:

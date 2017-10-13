@@ -31,7 +31,7 @@ function appUpdater() {
 	autoUpdater.checkForUpdates();
 }
 function createWindow() {
-  win = new BrowserWindow({width: 1100, height: 700, frame: false, minWidth: 1010, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false, icon: __dirname + '/WeebReact.ico'});
+  win = new BrowserWindow({width: 1100, height: 730, frame: false, minWidth: 1010, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false, icon: __dirname + '/WeebReact.ico'});
   win.loadURL(url.format({
     pathname: path.join(__dirname, 'index.html'),
     protocol: 'file',
@@ -92,33 +92,15 @@ function handleSquirrelEvent() {
   const squirrelEvent = process.argv[1];
   switch (squirrelEvent) {
     case '--squirrel-install':
-    case '--squirrel-updated':
-      // Optionally do things such as:
-      // - Add your .exe to the PATH
-      // - Write to the registry for things like file associations and
-      //   explorer context menus
-
-      // Install desktop and start menu shortcuts
       spawnUpdate(['--createShortcut', exeName]);
-
+    case '--squirrel-updated':
       setTimeout(app.quit, 1000);
       return true;
-
     case '--squirrel-uninstall':
-      // Undo anything you did in the --squirrel-install and
-      // --squirrel-updated handlers
-
-      // Remove desktop and start menu shortcuts
       spawnUpdate(['--removeShortcut', exeName]);
-
       setTimeout(app.quit, 1000);
       return true;
-
     case '--squirrel-obsolete':
-      // This is called on the outgoing version of your app before
-      // we update to the new version - it's the opposite of
-      // --squirrel-updated
-
       app.quit();
       return true;
   }
