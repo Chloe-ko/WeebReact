@@ -94,7 +94,7 @@ html,body {
   background-color: red;
   cursor: pointer;
   display: none;
-  background: url('img/arrow.png');
+  background: url('img/arrow.webp');
   -webkit-transition: -webkit-transform 0.3s;
   z-index: 2;
 }
@@ -109,7 +109,7 @@ html,body {
   height: 25px;
   width: 25px;
   cursor: pointer;
-  background: url('img/close.png');
+  background: url('img/close.webp');
   display: none;
   z-index: 2;
 }
@@ -164,25 +164,25 @@ html,body {
   padding-top: 3px;
 }
 .includedFiletype {
-  background: url('img/check.png');
+  background: url('img/check.webp');
   background-size: cover;
   width: 10px;
   height: 10px;
 }
 .selectedYes{
-  background: url('img/selectedYes.png');
+  background: url('img/selectedYes.webp');
   background-size: cover;
   width: 10px;
   height: 10px;
 }
 .excludedFiletype {
-  background: url('img/closeBlack.png');
+  background: url('img/closeBlack.webp');
   background-size: cover;
   width: 10px;
   height: 10px;
 }
 .selectedNo {
-  background: url('img/selectedNo.png');
+  background: url('img/selectedNo.webp');
   background-size: cover;
   width: 10px;
   height: 10px;
@@ -239,7 +239,7 @@ html,body {
   position: absolute;
   right: 5px;
   top: 5px;
-  background-image: url('img/arrowBlack.png');
+  background-image: url('img/arrowBlack.webp');
   background-size: cover;
   -webkit-transition: -webkit-transform 0.3s;
 }
@@ -253,6 +253,18 @@ html,body {
   height: 0px;
   overflow: hidden;
   -webkit-transition: height 0.3s;
+}
+.rating {
+  height: 15px;
+  width: 15px;
+  background-size: contain;
+  cursor: pointer;
+}
+.ratingY {
+  background-image: url("img/rating1.webp");
+}
+.ratingN {
+  background-image: url("img/rating0.webp");
 }
 #sortingDropdown {
   position: absolute;
@@ -474,15 +486,90 @@ html,body {
   width: calc(100% - 10px);
   height: 100%;
   word-wrap: break-word;
-  overflow: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   text-align: center;
 }
+#filepreview {
+  display: inline-block;
+  height: calc(100% - 20px);
+  width: calc(70% - 20px);
+  background-color: #1f1f1f;
+  margin: 10px;
+  border-radius: 10px;
+}
+.filepreview {
+  max-width: calc(100% - 20px);
+  max-height: calc(100% - 20px);
+  position: relative;
+  top: 50%;
+  -webkit-transform: translate(0%, -50%);
+}
+#filedetailswrapper {
+  display: inline-block;
+  position: relative;
+  height: 100%;
+  width: 30%;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  vertical-align: top;
+}
+#filedetails {
+  width: calc(100% - 20px);
+  height: calc(100% - 60px);
+  margin: 10px;
+  overflow: hidden;
+}
+#closeDetails {
+  cursor: pointer;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 30px;
+  width: 30px;
+  background-image: url("img/close.webp");
+  background-size: contain;
+  background-color: #1f1f1f;
+  border-radius: 50%;
+  -webkit-transition-duration: 0.3s;
+  -webkit-transition-property: background-color;
+}
+#closeDetails:hover {
+  background-color: #3b3b3b;
+}
+#detailsButtons {
+  margin-top: 10px;
+  width: calc(100% - 60px);
+  text-align: left;
+}
+.detailsButton {
+  display: inline-block;
+  color: white;
+  border-radius: 10px;
+  border: 1px solid black;
+  text-align: center;
+  margin-right: 5px;
+  padding: 5px;
+  font-size: 0.8em;
+  background-color: #3b3b3b;
+  cursor: pointer;
+  margin-bottom: 5px;
+  -webkit-transition-duration: 0.3s;
+  -webkit-transition-property: background-color;
+}
+.detailsButton:hover {
+  background-color: #2b2b2b;
+}
 .fileDetailsCategory {
-  width: 100%;
+  max-width: calc(100% - 10px);
+  width: auto;
   text-align: left;
   margin-top: 10px;
   color: white;
+  background-color: #4b4b4b;
+  padding: 5px;
+  border-radius: 10px;
+  padding-bottom: 0px;
 }
 .fileDetailsName {
   display: inline-block;
@@ -491,9 +578,13 @@ html,body {
 }
 .fileDetailsDetails {
   display: inline-block;
-  word-break: break-all;
-  word-wrap: break-word;
+  overflow: auto;
   width: calc(100% - 100px);
+}
+.fileDetailsScroll {
+  word-break: keep-all;
+  word-wrap: normal;
+  white-space: nowrap;
 }
 .picTagListing {
   display: inline-block;
@@ -512,7 +603,10 @@ html,body {
 }
 .picTagText {
   display: inline-block;
-  margin: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+  margin-top: 2px;
+  margin-bottom: 2px;
   vertical-align: middle;
 }
 .picTagTextAdd {
@@ -741,7 +835,7 @@ html,body {
   position: absolute;
   top: -5px;
   right: 5px;
-  background-image: url("img/close.png");
+  background-image: url("img/close.webp");
   background-size: contain;
   cursor: pointer;
   transition: background-color 0.3s;
@@ -755,7 +849,7 @@ html,body {
   color: black;
   background-color: #bbbbbb;
   max-height: 156px;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 .inlineblock {
@@ -772,75 +866,7 @@ html,body {
   margin: 0;
 }
 .autocompleteEntry:hover {
-  background-color: #303030;
-}
-#filepreview {
-  display: inline-block;
-  height: calc(100% - 20px);
-  width: calc(70% - 20px);
-  background-color: #1f1f1f;
-  margin: 10px;
-  border-radius: 10px;
-}
-.filepreview {
-  max-width: calc(100% - 20px);
-  max-height: calc(100% - 20px);
-  position: relative;
-  top: 50%;
-  -webkit-transform: translate(0%, -50%);
-}
-#filedetailswrapper {
-  display: inline-block;
-  position: relative;
-  height: 100%;
-  width: 30%;
-  border-top-right-radius: 10px;
-  border-bottom-right-radius: 10px;
-  vertical-align: top;
-}
-#filedetails {
-  width: calc(100% - 20px);
-  height: calc(100% - 60px);
-  margin: 10px;
-  margin-top: 50px;
-  overflow-y: scroll;
-  overflow-x: hidden;
-}
-#closeDetails {
-  cursor: pointer;
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: #1f1f1f;
-  border-radius: 50%;
-  -webkit-transition-duration: 0.3s;
-  -webkit-transition-property: background-color;
-}
-#closeDetails:hover {
-  background-color: #3b3b3b;
-}
-#detailsButtons {
-  margin-top: 10px;
-  width: calc(100% - 60px);
-  text-align: left;
-}
-.detailsButton {
-  display: inline-block;
-  color: white;
-  border-radius: 10px;
-  border: 1px solid black;
-  text-align: center;
-  margin-right: 5px;
-  padding: 5px;
-  font-size: 0.8em;
-  background-color: #3b3b3b;
-  cursor: pointer;
-  margin-bottom: 5px;
-  -webkit-transition-duration: 0.3s;
-  -webkit-transition-property: background-color;
-}
-.detailsButton:hover {
-  background-color: #2b2b2b;
+  background-color: #666666;
 }
 .tagDeleteButton {
   height: 15px;
@@ -1062,10 +1088,10 @@ html,body {
   transform: translate(-50%, -50%);
 }
 .incSubNo {
-  background-image: url("img/close.png");
+  background-image: url("img/close.webp");
 }
 .incSubYes {
-  background-image: url("img/checkWhite.png");
+  background-image: url("img/checkWhite.webp");
 }
 #addDirectory {
   width: 80px;

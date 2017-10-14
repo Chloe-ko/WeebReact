@@ -130,7 +130,7 @@ function init() {
     document.getElementById("options").style.display = "none";
     document.getElementById("greyboxr").style.backgroundColor = "#282828";
     document.getElementById("greyboxl").style.backgroundColor = "#282828";
-    document.getElementById("setupcontent").innerHTML = "Welcome!<br /><br />It looks like you don\'t have any folders set up yet. Please select the folder that contains your Reaction Pictures.<br /><br /><br /><button id=\"browsefolder\" class=\"roundbutton\">Select Folder</button><br /><br /><br /><div id=\"filetype-hint\">Supported Filetypes: .jpg .jpeg .png .gif .webm .mp4</div>";
+    document.getElementById("setupcontent").innerHTML = "Welcome!<br /><br />It looks like you don\'t have any folders set up yet. Please select the folder that contains your Reaction Pictures.<br /><br /><br /><button id=\"browsefolder\" class=\"roundbutton\">Select Folder</button><br /><br /><br /><div id=\"filetype-hint\">Supported Filetypes: .jpg .jpeg .webp .gif .webm .mp4</div>";
     document.getElementById("browsefolder").addEventListener("click", function() {
       dialog.showOpenDialog({properties:["openDirectory"]}, checkPictures);
     });
@@ -260,7 +260,7 @@ function startupScan() {
   for(i = 0; i < files.length; i += 1) {
     picpath = files[i].substring(0, files[i].lastIndexOf("\\"));
     filename = files[i].split('\\').pop();
-    addFile(picpath, filename);
+    addFile(picpath, filename, fileHashes[i]);
   }
   loadPictures();
   document.getElementById('overlay').style.display = "none";
@@ -282,7 +282,7 @@ function fileChange(event, file) {
       db.prepare("UPDATE pictures SET filename = ?, path = ?, available = ? WHERE hash = ?;").run(filename, picpath, 1, filehash);
       loadPictures();
     } else {
-      addFile(picpath, filename);
+      addFile(picpath, filename, filehash);
     }
   } else if (event == "change") {
     var filehash = xxh.hash64(fs.readFileSync(file), xxhashsalt, 'hex');
@@ -323,12 +323,11 @@ function fileChange(event, file) {
     loadPictures();
   }
 }
-function addFile (picpath, filename) {
-  var filehash = xxh.hash64(fs.readFileSync(picpath + "\\" + filename), xxhashsalt, 'hex');
+function addFile (picpath, filename, filehash) {
   var insertquery = 'INSERT INTO pictures (filename, path, hash, excluded, timeAdded, rating, filetype, available) VALUES (?,?,?,?,?,?,?,?);';
   var extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
   if(extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "webm" || extension == "mp4") {
-    db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(picpath + "\\" + filename).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
+    db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(picpath + "\\" + filename).mtime).format("YYYY-MM-DD HH:mm:ss"), 4, extension, 1);
       loadPictures();
   }
 }
@@ -509,6 +508,7 @@ function toggleSettingsWindow () {
     var firstListing;
     var incSub;
     var directoryq;
+    var directoryname;
     for(i = 0; i < settingsDirectories.length; i += 1) {
       directoryq = settingsDirectories[i].directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       firstListing = "";
@@ -520,7 +520,12 @@ function toggleSettingsWindow () {
       } else {
         incSub = "incSubNo";
       }
-      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory + "\">" + settingsDirectories[i].directory.split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this);\">Remove</div></div>";
+      directoryname = settingsDirectories[i].directory.split('\\').pop();
+      console.log(directoryname);
+      if(directoryname == "") {
+        directoryname = settingsDirectories[i].directory;
+      }
+      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory + "\">" + directoryname + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this);\">Remove</div></div>";
     }
     document.getElementById('directoryListingBox').innerHTML = directoryListing;
     showOverlay();
@@ -594,11 +599,16 @@ function openAddDirectoryDialog() {
   dialog.showOpenDialog({properties:["openDirectory"]}, settingsAddDirectory);
 }
 function settingsAddDirectory(directory) {
-  restartNeeded = true;
-  directory = directory[0];
-  settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1});
-  directoryq = directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-  document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory + "\">" + directory.split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+  if(directory != undefined) {
+    restartNeeded = true;
+    directory = directory[0];
+    if(directory.slice(-1) == "\\") {
+      directory = directory.substr(0, directory.length-1);
+    }
+    settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1});
+    directoryq = directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+    document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory + "\">" + directory.split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+  }
 }
 function filterFiletype (filetype) {
   var i;
@@ -819,6 +829,7 @@ function openDetails(picdbid) {
     }
     document.getElementById("multiSelectionCounter").innerHTML = "Pictures selected: " + selectedPictures.length;
   } else {
+    var i;
     var pic = db.prepare('SELECT * FROM pictures WHERE id = ?;').get(picdbid);
     fileDetailsOpen = true;
     var extension = pic.filename.substr(pic.filename.lastIndexOf('.') + 1).toLowerCase();
@@ -830,13 +841,22 @@ function openDetails(picdbid) {
       document.getElementById('filepreview').innerHTML = "<img id=\"previewedfile\" oncontextmenu=\"showContextMenu(event, this, " + picdbid + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pic.path + "\\" + pic.filename + "\" class=\"filepreview\" />";
     }
     var details = [];
-    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').shift() + "</div></div>");
+    var rating = "";
+    var rated;
+    for(i = 0; i < 10; i += 1) {
+      rated = "N";
+      if(i <= pic.rating) {
+        rated = "Y";
+      }
+      rating += "<div id=\"detailsRating" + i + "\" class=\"inlineblock rating rating" + rated + "\" onclick=\"setRating(" + picdbid + ", " + i + ", 'details');\"></div>";
+    }
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filename</div><div class=\"fileDetailsDetails\"><div class=\"fileDetailsScroll\">" + pic.filename.split('.').shift() + "</div></div></div>");
     details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Filetype</div><div class=\"fileDetailsDetails\">" + pic.filename.split('.').pop() + "</div></div>");
-    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\">" + pic.path + "</div>");
-    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment(pic.timeAdded, "YYYY-MM-DD HH:mm:ss").format("DD/MM/YYYY") + "</div></div></div><br /><br />");
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Folder</div><div class=\"fileDetailsDetails\"><div class=\"fileDetailsScroll\">" + pic.path + "</div></div></div>");
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Added On</div><div class=\"fileDetailsDetails\">" + moment(pic.timeAdded, "YYYY-MM-DD HH:mm:ss").format("DD/MM/YYYY") + "</div></div>");
+    details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Rating</div><div class=\"fileDetailsDetails\">" + rating + "</div></div>")
     var tags = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picdbid);
     var tagHtml = "";
-    var i;
     document.getElementById('detailsShowInFolderButton').onclick = function() {
       showInFolder(picdbid);
     };
@@ -844,7 +864,7 @@ function openDetails(picdbid) {
       copyLocation(picdbid);
     };
     for(i = 0; i < tags.length; i += 1) {
-      tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
+      tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.webp\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
     }
     details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
     var i;
@@ -861,6 +881,27 @@ function openDetails(picdbid) {
       } else {
         opa += 0.05;
         document.getElementById('details').style.opacity = opa;
+      }
+    }
+  }
+}
+function setRating(picdbid, rating, place) {
+  db.prepare("UPDATE pictures SET rating = ? WHERE id = ?;").run(rating, picdbid);
+  var i;
+  var element;
+  if(place == "details") {
+    for(i = 0; i < 10; i += 1) {
+      element = document.getElementById('detailsRating' + i);
+      if(i <= rating) {
+        if(element.classList.contains("ratingN")) {
+          element.classList.remove("ratingN");
+          element.classList.add("ratingY");
+        }
+      } else {
+        if(element.classList.contains("ratingY")) {
+          element.classList.remove("ratingY");
+          element.classList.add("ratingN");
+        }
       }
     }
   }
@@ -939,7 +980,7 @@ function editTagsConfirm (action, picid, multi) {
         db.prepare(query).run(editTagsArray[i], picid);
       }
       if(fileDetailsOpen) {
-        document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" oncontextmenu=\"addSearchTag(\'" + editTagsArray[i] + "\', true);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.png\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + editTagsArray[i] + "\', \'" + picid + "\', this)\" /></div>");
+        document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" oncontextmenu=\"addSearchTag(\'" + editTagsArray[i] + "\', true);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.webp\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + editTagsArray[i] + "\', \'" + picid + "\', this)\" /></div>");
       } else if(multiSelectionActive) {
         multiSelectionClear();
       }
@@ -1074,28 +1115,48 @@ function expandTagList() {
   }
 }
 function sortBy(s) {
-  orderBy = s;
-  var newtext;
-  if(s == "datetime(timeAdded)") {
-    newtext = "Time Added";
-  } else if(s == "rating") {
-    newtext = "Rating";
-  } else if(s == "filename") {
-    newtext = "Filename";
+  if(orderBy != s) {
+    var newtext;
+    if(s == "datetime(timeAdded)") {
+      newtext = "Time Added";
+      if(orderBy == "filename") {
+        reverseSortOrder();
+      }
+    } else if(s == "rating") {
+      newtext = "Rating";
+      if(orderBy == "filename") {
+        reverseSortOrder();
+      }
+    } else if(s == "filename") {
+      newtext = "Filename";
+      reverseSortOrder();
+    }
+    orderBy = s;
+    document.getElementById('sortingDropdownText').innerHTML = "Sort By: " + newtext;
+    loadPictures();
   }
-  document.getElementById('sortingDropdownText').innerHTML = "Sort By: " + newtext;
-  loadPictures();
 }
-function sortOrderBy(s) {
-  sortingOrder = s;
-  var newtext;
-  if(s == "ASC") {
-    newtext = "Ascending";
-  } else if(s == "DESC") {
-    newtext = "Descending";
+function reverseSortOrder() {
+  if(sortingOrder == "ASC") {
+    sortOrderBy("DESC", false);
+  } else {
+    sortOrderBy("ASC", false);
   }
-  document.getElementById('orderDropdownText').innerHTML = newtext;
-  loadPictures();
+}
+function sortOrderBy(s, re) {
+  if(sortingOrder != s) {
+    sortingOrder = s;
+    var newtext;
+    if(s == "ASC") {
+      newtext = "Ascending";
+    } else if(s == "DESC") {
+      newtext = "Descending";
+    }
+    document.getElementById('orderDropdownText').innerHTML = newtext;
+    if(re) {
+      loadPictures();
+    }
+}
 }
 function searchAutocomplete(value) {
   var i;
@@ -1173,7 +1234,7 @@ function addSearchTag(tag, exclude) {
     removeExclude = "true";
   }
   if(add) {
-    element.innerHTML += "<div id=\"searchTagName" + tag + "\" class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
+    element.innerHTML += "<div id=\"searchTagName" + tag + "\" class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
     loadPictures();
     hideSearchAutocomplete();
   }
@@ -1302,7 +1363,7 @@ function switchIncludeExclude(tag, exclude, elm) {
   }
   element.classList.add(classadd);
   element.classList.remove(classremove);
-  element.innerHTML = "<div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.png\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" />";
+  element.innerHTML = "<div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" />";
   loadPictures();
 }
 function editTagsAddTagToList (tagname) {
@@ -1321,7 +1382,7 @@ function editTagsAddTagToList (tagname) {
   }
   if(add) {
     editTagsArray.push(tagname.toLowerCase());
-    document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.png\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
+    document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.webp\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
     document.getElementById('editTagsInput').value = "";
   }
   hideEditTagsAutocomplete();
@@ -1611,8 +1672,14 @@ function getDirectories(dir, isSub, isSubOf) {
   var files = fs.readdirSync(dir);
   dirList = dirList || [];
   var i;
+  var isDir;
   for(i = 0; i < files.length; i += 1) {
-    if(fs.lstatSync(dir + "\\" + files[i]).isDirectory()) {
+    try {
+      isDir = fs.lstatSync(dir + "\\" + files[i]).isDirectory();
+    } catch(err) {
+      isDir = false;
+    }
+    if(isDir) {
       if(!isSub) {
         dirList.push(files[i]);
         getDirectories(dir + "\\" + files[i], true, files[i]);
@@ -1658,7 +1725,7 @@ function addFolder(directory, sub, tag) {
             filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
             checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
             if(checkduplicate == 0) {
-              db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
+              db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 4, extension, 1);
               x += 1;
               if(tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
@@ -1681,7 +1748,7 @@ function addFolder(directory, sub, tag) {
         filehash = xxh.hash64(fs.readFileSync(pictures[i]), xxhashsalt, 'hex');
         checkduplicate = db.prepare('SELECT count(*) FROM pictures WHERE hash = ?;').get(filehash)["count(*)"];
         if(checkduplicate == 0) {
-          db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 0, extension, 1);
+          db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(pictures[i]).mtime).format("YYYY-MM-DD HH:mm:ss"), 4, extension, 1);
           x += 1;
         }
       }
@@ -1702,12 +1769,22 @@ function getFiles(dir){
   var fileList = [];
   var files = fs.readdirSync(dir);
   var i;
+  var filestats;
+  var cont;
   for(i = 0; i < files.length; i+=1){
-    if (!files.hasOwnProperty(i)) {
-      break;
-      }
+    cont = true;
     var name = dir+'\\'+files[i];
-    if (!fs.statSync(name).isDirectory()){
+    try {
+      filestats = fs.statSync(name);
+    } catch(err) {
+      cont = false;
+    }
+    if(cont == true) {
+      if(filestats.isDirectory() || filestats.size > 300000000) {
+        cont = false;
+      }
+    }
+    if (cont){
       fileList.push(name);
     }
   }

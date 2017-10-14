@@ -16,7 +16,7 @@
           <div id="blackboxr"></div>
           <div id="greyboxr"></div>
           <div id="titlebuttons">
-            <img draggable="false" src="img/minimize.png" id="minimize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/maximize.png" id="maximize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/close.png" id="close-btn" class="titlebar-btn button-glow" />
+            <img draggable="false" src="img/minimize.webp" id="minimize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/maximize.webp" id="maximize-btn" class="titlebar-btn button-glow" /><img draggable="false" src="img/close.webp" id="close-btn" class="titlebar-btn button-glow" />
           </div>
           <div id="title" onclick="toggleAboutPage();">WeebReact</div>
         </div>
@@ -49,7 +49,7 @@
           <div id="selectMultipleArea">
             <div id="selectMultipleButton" class="optionsbutton inlineblock" onclick="toggleMultiSelection();">
               <div class="optionsbuttontext" id="selectMultipleButtonText">
-                Select multiple
+                Multi-selection
               </div>
             </div>
             <div id="multiSelectionAddTagsButton" class="optionsbutton inlineblock hidden" onclick="multiSelectionAction('add');">
@@ -89,8 +89,8 @@
                 <div id="orderByDropDownImage" class="dropdownArrow"></div>
               </div>
               <div id="orderDropdown" class="dropdown">
-                <div class="dropdownEntry" onclick="sortOrderBy('DESC'); toggleOrderDropdown();">Descending</div>
-                <div class="dropdownEntry dropdownEntryBottom" onclick="sortOrderBy('ASC'); toggleOrderDropdown();">Ascending</div>
+                <div class="dropdownEntry" onclick="sortOrderBy('DESC', true); toggleOrderDropdown();">Descending</div>
+                <div class="dropdownEntry dropdownEntryBottom" onclick="sortOrderBy('ASC', true); toggleOrderDropdown();">Ascending</div>
               </div>
             </div>
             <div id="filterDropdownHide">
@@ -118,7 +118,7 @@
           <div id="details">
             <div id="filepreview">
             </div><div id="filedetailswrapper">
-              <img src="img/closeDetails.png" id="closeDetails" onclick="closeFileDetails();" draggable="false" />
+              <div id="closeDetails" onclick="closeFileDetails();"></div>
               <div id="detailsButtons">
                 <div class="detailsButton" id="detailsShowInFolderButton">Show in Folder</div><div class="detailsButton" id="detailsCopyLocationButton">Copy Location</div><div class="detailsButton" id="detailsExcludeButton">Exclude</div>
               </div>
@@ -137,7 +137,7 @@
                 </div>
                 <div id="editTagsListing"></div>
               </div>
-              <img src="img/close.png" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">
+              <img src="img/close.webp" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">
               <button id="editTagsConfirm" class="editTagsButtons">Confirm</button>
             </div>
           </div>
