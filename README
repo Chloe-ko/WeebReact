@@ -7,11 +7,9 @@ Once all the important things are done I'll make the code far cleaner.
 TODO:
 
 - Watcher options
-- fix "include Subdirectories" option sometimes not triggering
 - unload pictures that are out of view
 - directory name only one line
 - list tags in edit tags dialogue
-- Rating Option in Details page
 -  "Add Tags" and Rating Option in context menu
 -  add function to list all untagged pictures
 

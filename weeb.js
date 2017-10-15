@@ -155,11 +155,14 @@ function init() {
       }
     }
     var picDirectories = db.prepare('SELECT directory, includeSubdirectories FROM directories WHERE watch = ?;').all(1);
+    console.log(picDirectories);
     for(i = 0; i < picDirectories.length; i += 1) {
       if(picDirectories[i].includeSubdirectories == 1) {
-        watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true}).on('all', (event, path) => {
+        watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, followSymlinks: false}).on('all', (event, path) => {
           fileChange(event, path);
+          console.log(path);
         }));
+        console.log(watcher);
       } else {
         watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, depth: 0}).on('all', (event, path) => {
           fileChange(event, path);
@@ -445,17 +448,17 @@ function confirmSettings() {
     for(i = 0; i < settingsDirectories.length; i += 1) {
       for(x = 0; x < dbdirs.length; x += 1) {
         if(dbdirs[x].directory == settingsDirectories[i].directory) {
-          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].directory);
+          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].directory.stripSlashes());
           settingsDirectories.splice(i, 1);
           dbdirs.splice(x, 1);
         }
       }
     }
     for(i = 0; i < dbdirs.length; i += 1) {
-      db.prepare("DELETE FROM directories WHERE directory = ?;").run(dbdirs[i].directory);
+      db.prepare("DELETE FROM directories WHERE directory = ?;").run(dbdirs[i].directory.stripSlashes());
     }
     for(i = 0; i < settingsDirectories.length; i += 1) {
-      db.prepare("INSERT INTO directories (directory, includeSubdirectories, watch) VALUES (?, ?, ?);").run(settingsDirectories[i].directory, settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch)
+      db.prepare("INSERT INTO directories (directory, includeSubdirectories, watch) VALUES (?, ?, ?);").run(settingsDirectories[i].directory.stripSlashes(), settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch)
     }
     reload();
   }
@@ -511,6 +514,7 @@ function toggleSettingsWindow () {
     var directoryname;
     for(i = 0; i < settingsDirectories.length; i += 1) {
       directoryq = settingsDirectories[i].directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      settingsDirectories[i].directory = settingsDirectories[i].directory.addSlashes();
       firstListing = "";
       if(i == 0) {
         firstListing = " firstDirectoryListing";
@@ -520,12 +524,11 @@ function toggleSettingsWindow () {
       } else {
         incSub = "incSubNo";
       }
-      directoryname = settingsDirectories[i].directory.split('\\').pop();
-      console.log(directoryname);
+      directoryname = settingsDirectories[i].directory.stripSlashes().split('\\').pop();
       if(directoryname == "") {
         directoryname = settingsDirectories[i].directory;
       }
-      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory + "\">" + directoryname + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this);\">Remove</div></div>";
+      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory.stripSlashes() + "\">" + directoryname + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq.addSlashes() + "', this);\">Remove</div></div>";
     }
     document.getElementById('directoryListingBox').innerHTML = directoryListing;
     showOverlay();
@@ -575,6 +578,7 @@ function toggleIncludeSubdirectories(directory, elm) {
       break;
     }
   }
+  console.log(settingsDirectories);
   restartNeeded = true;
 }
 function removeDirectory(directory, elm) {
@@ -583,7 +587,7 @@ function removeDirectory(directory, elm) {
   } else {
     var i;
     for(i = 0; i < settingsDirectories.length; i += 1) {
-      if(directory == settingsDirectories[i].directory) {
+      if(directory.addSlashes() == settingsDirectories[i].directory) {
         settingsDirectories.splice(i, 1);
         if(elm.parentNode.classList.contains("firstDirectoryListing")) {
           elm.parentNode.parentNode.children[1].classList.add("firstDirectoryListing");
@@ -600,15 +604,37 @@ function openAddDirectoryDialog() {
 }
 function settingsAddDirectory(directory) {
   if(directory != undefined) {
-    restartNeeded = true;
     directory = directory[0];
+    var cont = true;
     if(directory.slice(-1) == "\\") {
       directory = directory.substr(0, directory.length-1);
     }
-    settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1});
-    directoryq = directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-    document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory + "\">" + directory.split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+    var i;
+    for(i = 0; i < settingsDirectories.length; i += 1) {
+      if(settingsDirectories[i].directory == directory) {
+        cont = false;
+      }
+    }
+    if(cont) {
+      restartNeeded = true;
+      directoryq = directory.addAllSlashes();
+      directory = directory.addSlashes();
+      settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1});
+      document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory.stripSlashes() + "\">" + directory.stripSlashes().split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+    }
   }
+}
+String.prototype.addSlashes = function() {
+return this.replace(/\'/g,'\\\'').replace(/\"/g,'\\"');
+}
+String.prototype.addAllSlashes = function() {
+return this.replace(/\\/g,'\\\\').replace(/\'/g,'\\\'').replace(/\"/g,'\\"').replace(/\0/g,'\\0');
+}
+String.prototype.stripSlashes = function() {
+return this.replace(/\\'/g,'\'').replace(/\\"/g,'"');
+}
+String.prototype.stripAllSlashes = function() {
+return this.replace(/\\'/g,'\'').replace(/\\"/g,'"').replace(/\\0/g,'\0').replace(/\\\\/g,'\\');
 }
 function filterFiletype (filetype) {
   var i;

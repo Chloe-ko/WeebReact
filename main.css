@@ -1055,17 +1055,21 @@ html,body {
 }
 .directoryName {
   font-size: 0.9em;
-  width: 199px;
+  width: 194px;
   height: 18px;
   line-height: 18px;
-  border-right: 1px solid black;
   position: absolute;
   left: 5px;
+  word-wrap: normal;
+  word-break: keep-all;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .incSub {
   width: 29px;
   height: 18px;
   border-right: 1px solid black;
+  border-left: 1px solid black;
   position: absolute;
   left: 205px;
 }
