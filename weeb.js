@@ -94,7 +94,7 @@ function setContainerheight () {
   document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*pictureClientSize)))*(pictureScale*pictureClientSize) + "px";
 }
 function init() {
-  document.getElementById("aboutTitle").innerHTML = "WeebReact v" + jsonContent.version;
+  document.getElementById("aboutTitle").innerHTML = "WeebReact<br />v" + jsonContent.version;
   document.getElementById("minimize-btn").addEventListener("click", function (e) {
     const window = remote.getCurrentWindow();
     window.minimize();
@@ -117,7 +117,7 @@ function init() {
       db.pragma("journal_mode = WAL");
       db.prepare("CREATE TABLE pictures (id integer primary key autoincrement, filename text, path text, filetype text, rating integer, hash text unique, excluded integer, available integer, timeAdded integer, unique(path, filename));").run();
       db.prepare("CREATE TABLE tags (tag text, id int, unique(tag, id));").run();
-      db.prepare("CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer);").run();
+      db.prepare("CREATE TABLE directories (directory text, includeSubdirectories integer, watch integer, watchSub integer);").run();
       db.prepare("CREATE TABLE settings (name text pimary key, value integer);").run();
       db.prepare("INSERT INTO settings VALUES ('hidensfw', 1);").run();
       db.prepare("INSERT INTO settings VALUES ('excludejpg', 0);").run();
@@ -137,6 +137,12 @@ function init() {
     document.getElementById("overlay").style.display = "block";
     document.getElementById("setup").style.display = "block";
   } else {
+    try { db.prepare("SELECT DISTINCT watchSub FROM directories;").get(); }
+    catch(err) {
+      db.prepare("ALTER TABLE directories ADD COLUMN watchSub integer;").run();
+      db.prepare("UPDATE directories SET watchSub = ?;").run(1);
+      console.log("added");
+    }
     removeElementById("setup");
     var settingsEFQuery = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
     var i;
@@ -154,19 +160,20 @@ function init() {
         document.getElementById('filetype' + excludedFiletypes[i]).classList.add("excludedFiletype");
       }
     }
-    var picDirectories = db.prepare('SELECT directory, includeSubdirectories FROM directories WHERE watch = ?;').all(1);
-    console.log(picDirectories);
+    var picDirectories = db.prepare('SELECT directory, includeSubdirectories, watchSub FROM directories WHERE watch = ?;').all(1);
     for(i = 0; i < picDirectories.length; i += 1) {
-      if(picDirectories[i].includeSubdirectories == 1) {
-        watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, followSymlinks: false}).on('all', (event, path) => {
-          fileChange(event, path);
-          console.log(path);
-        }));
-        console.log(watcher);
+      if(fs.existsSync(picDirectories[i].directory)) {
+        if(picDirectories[i].includeSubdirectories == 1 && picDirectories[i].watchSub == 1) {
+          watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, disableGlobbing: true}).on('all', (event, path) => {
+            fileChange(event, path);
+          }));
+        } else {
+          watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, disableGlobbing: true, depth: 0}).on('all', (event, path) => {
+            fileChange(event, path);
+          }));
+        }
       } else {
-        watcher.push(chokidar.watch(picDirectories[i].directory, {ignored: /(^|[\/\\])\../, ignoreInitial: true, depth: 0}).on('all', (event, path) => {
-          fileChange(event, path);
-        }));
+        db.prepare("DELETE FROM directories WHERE directory = ?;").run(picDirectories[i].directory);
       }
     }
     if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
@@ -270,6 +277,7 @@ function startupScan() {
   document.getElementById('startupScanScreen').style.display = "none";
 }
 function fileChange(event, file) {
+  console.log(event, file);
   var picpath = file.substring(0, file.lastIndexOf("\\"));
   var filename = file.split('\\').pop();
   if(event == "add") {
@@ -448,7 +456,7 @@ function confirmSettings() {
     for(i = 0; i < settingsDirectories.length; i += 1) {
       for(x = 0; x < dbdirs.length; x += 1) {
         if(dbdirs[x].directory == settingsDirectories[i].directory) {
-          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].directory.stripSlashes());
+          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ?, watchSub = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].watchSub, settingsDirectories[i].directory.stripSlashes());
           settingsDirectories.splice(i, 1);
           dbdirs.splice(x, 1);
         }
@@ -458,7 +466,7 @@ function confirmSettings() {
       db.prepare("DELETE FROM directories WHERE directory = ?;").run(dbdirs[i].directory.stripSlashes());
     }
     for(i = 0; i < settingsDirectories.length; i += 1) {
-      db.prepare("INSERT INTO directories (directory, includeSubdirectories, watch) VALUES (?, ?, ?);").run(settingsDirectories[i].directory.stripSlashes(), settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch)
+      db.prepare("INSERT INTO directories VALUES (?, ?, ?, ?);").run(settingsDirectories[i].directory.stripSlashes(), settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].watchSub)
     }
     reload();
   }
@@ -510,6 +518,8 @@ function toggleSettingsWindow () {
     settingsDirectories = db.prepare("SELECT * FROM directories;").all();
     var firstListing;
     var incSub;
+    var watch;
+    var watchSub;
     var directoryq;
     var directoryname;
     for(i = 0; i < settingsDirectories.length; i += 1) {
@@ -524,11 +534,21 @@ function toggleSettingsWindow () {
       } else {
         incSub = "incSubNo";
       }
+      if(settingsDirectories[i].watch == 1) {
+        watch = "incSubYes";
+      } else {
+        watch = "incSubNo";
+      }
+      if(settingsDirectories[i].watchSub == 1) {
+        watchSub = "incSubYes";
+      } else {
+        watchSub = "incSubNo";
+      }
       directoryname = settingsDirectories[i].directory.stripSlashes().split('\\').pop();
       if(directoryname == "") {
         directoryname = settingsDirectories[i].directory;
       }
-      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory.stripSlashes() + "\">" + directoryname + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq.addSlashes() + "', this);\">Remove</div></div>";
+      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory.stripSlashes() + "\">" + directoryname + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watch + "\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watchSub + "\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq.addSlashes() + "', this);\">Remove</div></div>";
     }
     document.getElementById('directoryListingBox').innerHTML = directoryListing;
     showOverlay();
@@ -578,7 +598,46 @@ function toggleIncludeSubdirectories(directory, elm) {
       break;
     }
   }
-  console.log(settingsDirectories);
+  restartNeeded = true;
+}
+function toggleWatchDirectory(directory, elm) {
+  var toSet;
+  if(elm.classList.contains("incSubYes")) {
+    toSet = 0;
+    elm.classList.remove("incSubYes");
+    elm.classList.add("incSubNo");
+  } else {
+    toSet = 1;
+    elm.classList.add("incSubYes");
+    elm.classList.remove("incSubNo");
+  }
+  var i;
+  for(i = 0; i < settingsDirectories.length; i += 1) {
+    if(settingsDirectories[i].directory == directory) {
+      settingsDirectories[i].watch = toSet;
+      break;
+    }
+  }
+  restartNeeded = true;
+}
+function toggleWatchSubdirectories(directory, elm) {
+  var toSet;
+  if(elm.classList.contains("incSubYes")) {
+    toSet = 0;
+    elm.classList.remove("incSubYes");
+    elm.classList.add("incSubNo");
+  } else {
+    toSet = 1;
+    elm.classList.add("incSubYes");
+    elm.classList.remove("incSubNo");
+  }
+  var i;
+  for(i = 0; i < settingsDirectories.length; i += 1) {
+    if(settingsDirectories[i].directory == directory) {
+      settingsDirectories[i].watchSub = toSet;
+      break;
+    }
+  }
   restartNeeded = true;
 }
 function removeDirectory(directory, elm) {
@@ -619,8 +678,8 @@ function settingsAddDirectory(directory) {
       restartNeeded = true;
       directoryq = directory.addAllSlashes();
       directory = directory.addSlashes();
-      settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1});
-      document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory.stripSlashes() + "\">" + directory.stripSlashes().split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+      settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1, watchSub: 1});
+      document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory.stripSlashes() + "\">" + directory.stripSlashes().split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div><div class=\"incSubPic " + watch + "\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watchSub + "\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
     }
   }
 }
@@ -742,7 +801,7 @@ function copyLocation(id) {
 function showContextMenu(event, el, picid) {
   var contextmenu = document.getElementById('contextmenu');
   contextmenuelement = el;
-  contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + "); hideContextMenu(this.parentNode.parentNode);\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
+  contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + "); hideContextMenu(this.parentNode.parentNode);\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"openAddTagsDialog('add', " + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Add Tags</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"openAddTagsDialog('remove', " + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Remove Tags</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
   var cursorPosition = getCursorPosition(event);
   contextmenu.style.display = "block";
   if(document.getElementById('content').clientWidth - cursorPosition[0] < contextmenu.clientWidth) {
@@ -1249,7 +1308,6 @@ function addSearchTag(tag, exclude) {
       add = false;
     }
   }
-  element = document.getElementById('searchTags');
   if(!exclude && add) {
     searchArrayInc.push(tag);
     classname = "includetag";
@@ -1259,6 +1317,7 @@ function addSearchTag(tag, exclude) {
     classname = "excludetag";
     removeExclude = "true";
   }
+  element = document.getElementById('searchTags');
   if(add) {
     element.innerHTML += "<div id=\"searchTagName" + tag + "\" class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
     loadPictures();
@@ -1339,7 +1398,7 @@ function removeSearchTag(tag, exclude, elm) {
   }
   loadPictures();
 }
-function clearSearchTags() {
+function clearSearchTags(reload) {
   searchArrayInc = [];
   searchArrayExc = [];
   if(db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
@@ -1357,7 +1416,9 @@ function clearSearchTags() {
   }
   tagListExpanded = false;
   document.getElementById('searchTags').style.paddingLeft = "0px";
-  loadPictures();
+  if(reload == undefined) {
+    loadPictures();
+  }
 }
 function switchIncludeExclude(tag, exclude, elm) {
   var i;
@@ -1549,7 +1610,7 @@ function loadPictures() {
     }
     excludeQuery += ")";
   }
-  if(searchArrayInc.length > 0) {
+  if(searchArrayInc.length > 0 && (searchArrayInc.indexOf("untagged") == -1 && searchArrayExc.indexOf("untagged") == -1)) {
     var queryadd = "";
     var query;
     var excludePictures;
@@ -1580,7 +1641,7 @@ function loadPictures() {
         }
       }
     }
-  } else {
+  } else if(searchArrayInc.indexOf("untagged") == -1 && searchArrayExc.indexOf("untagged") == -1) {
     pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ? AND available = ?" + excludeQuery + " ORDER BY " + orderBy + " " + sortingOrder + ";").all(0, 1);
     if(searchArrayExc.length > 0) {
       queryadd = "";
@@ -1598,6 +1659,18 @@ function loadPictures() {
           if(pictures[x].id == excludePictures[i].id) {
             pictures.splice(x, 1);
           }
+        }
+      }
+    }
+  }
+  if(searchArrayInc.indexOf("untagged") != -1 || searchArrayExc.indexOf("untagged") != -1) {
+    var taggedids = db.prepare("SELECT DISTINCT id FROM tags;").all();
+    pictures = db.prepare("SELECT * FROM pictures WHERE excluded = ? AND available = ? ORDER BY " + orderBy + " " + sortingOrder + ";").all(0, 1);
+    for(i = 0; i < taggedids.length; i += 1) {
+      for(x = 0; x < pictures.length; x += 1) {
+        if(taggedids[i].id == pictures[x].id) {
+          pictures.splice(x, 1);
+          break;
         }
       }
     }
@@ -1718,7 +1791,7 @@ function getDirectories(dir, isSub, isSubOf) {
   return dirList;
 }
 function addFolder(directory, sub, tag) {
-  document.getElementById('setupcontent').innerHTML = "<div class=\"loader\" id=\"setuploader\"></div><br />Adding pictures into database..";
+  document.getElementById('setupcontent').innerHTML = "<div class=\"loader\" id=\"setuploader\"></div><br />Adding pictures into database";
   var subb;
   if(sub) {
     subb = 1;
@@ -1726,7 +1799,7 @@ function addFolder(directory, sub, tag) {
     subb = 0;
   }
   setTimeout(function() {
-    db.prepare('INSERT INTO directories VALUES (?, ?, ?);').run(directory, subb, 1);
+    db.prepare('INSERT INTO directories VALUES (?, ?, ?, ?);').run(directory, subb, 1, 1);
     var pictures;
     var x = 0;
     var i;

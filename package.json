@@ -1,6 +1,6 @@
 {
   "name": "WeebReact",
-  "version": "0.9.45",
+  "version": "0.9.46",
   "main": "main.js",
   "productName": "WeebReact",
   "author": "Shironomia",
@@ -9,7 +9,7 @@
     "weeb": "electron ."
   },
   "devDependencies": {
-    "electron": "1.7.8",
+    "electron": "1.7.9",
     "electron-packager": "^9.1.0",
     "electron-rebuild": "^1.6.0",
     "node-gyp": "^3.6.2"

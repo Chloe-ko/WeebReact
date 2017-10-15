@@ -1,3 +1,4 @@
+var checkForUpdates = true;
 if (require('electron-squirrel-startup')) return;
 const {app, BrowserWindow, ipcMain, autoUpdater, dialog} = require('electron');
 if (handleSquirrelEvent()) {
@@ -10,26 +11,55 @@ const os = require('os');
 const updateFeedUrl = "http:\/\/weebreact.shironomia.de\/releases\/x64";
 const fs = require('fs');
 
+var checkingForUpdate = false;
+var downloadingUpdate = false;
+var promtedQuit = false;
+
 let win;
 
-function appUpdater() {
-	autoUpdater.setFeedURL(updateFeedUrl);
-	autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
-		let message = 'An update for WeebReact is now available. It will be installed the next time you restart the application.';
-		dialog.showMessageBox({
-			type: 'question',
-			buttons: ['Install and Relaunch', 'Later'],
-			defaultId: 0,
-			message: 'A new version of WeebReact has been downloaded',
-			detail: message
-		}, response => {
-			if (response === 0) {
+
+autoUpdater.setFeedURL(updateFeedUrl);
+autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+  if(!promtedQuit) {
+    downloadingUpdate = false;
+    let message = 'An update for WeebReact is now available. It will be installed the next time you restart the application.';
+    dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Install and Relaunch', 'Later'],
+      defaultId: 0,
+      message: 'A new version of WeebReact has been downloaded',
+      detail: message
+    }, response => {
+      if (response === 0) {
         autoUpdater.quitAndInstall();
-			}
-		});
-	});
-	autoUpdater.checkForUpdates();
-}
+      }
+    });
+  } else {
+    app.quit();
+  }
+});
+autoUpdater.on('checking-for-update', (event, arg) => {
+  if(!promptedQuit) {
+    checkingForUpdate = true;
+  } else {
+    app.quit();
+  }
+});
+autoUpdater.on('update-available', (event, arg) => {
+  if(!promptedQuit) {
+    checkingForUpdate = false;
+    downloadingUpdate = true;
+  } else {
+    app.quit();
+  }
+});
+autoUpdater.on('update-not-available', (event, arg) => {
+  if(!promptedQuit) {
+    checkingForUpdate = false;
+  } else {
+    app.quit();
+  }
+});
 function createWindow() {
   win = new BrowserWindow({width: 1100, height: 730, frame: false, minWidth: 1010, minHeight: 500, title: "WeebReact", backgroundColor: "#1f1f1f", show: false, icon: __dirname + '/WeebReact.ico'});
   win.loadURL(url.format({
@@ -41,16 +71,25 @@ function createWindow() {
   });
   win.on('closed', () => {
     win = null;
-    app.quit();
+    if(checkingForUpdate || downloadingUpdate) {
+      promptedQuit = true;
+    } else {
+      app.quit();
+    }
   });
   ipcMain.on('reload', function() {
     win.reload();
   });
   win.on('ready-to-show', function() {
-    win.show()
+    win.show();
   });
   if(fs.existsSync(path.resolve(path.dirname(process.execPath), '..', 'Update.exe'))) {
-    appUpdater();
+    if(fs.existsSync(process.env.APPDATA + "\\WeebReact\\OpenDevTools")) {
+      win.webContents.openDevTools();
+    }
+    if(checkForUpdates) {
+    autoUpdater.checkForUpdates();
+  }
   } else {
     win.webContents.openDevTools();
   }
@@ -93,6 +132,7 @@ function handleSquirrelEvent() {
   switch (squirrelEvent) {
     case '--squirrel-install':
       spawnUpdate(['--createShortcut', exeName]);
+      checkForUpdates = false;
     case '--squirrel-updated':
       setTimeout(app.quit, 1000);
       return true;
