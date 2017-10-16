@@ -11,7 +11,6 @@ const chokidar = require('chokidar');
 const naturalSort = require('node-natural-sort');
 var contextmenuelement;
 var piccount;
-var lastX;
 var menuFunc;
 var dirList;
 var tagsForAutocomplete;
@@ -29,6 +28,10 @@ var tagSettingChanged;
 var nsfwSettingChanged;
 var settingsExcludedFiletypes;
 var settingsDirectories;
+var linesHidden;
+var linesShown;
+var picsHiddenUpTo;
+var picsShownUpTo;
 var orderBy = "datetime(timeAdded)";
 var sortingOrder = "DESC";
 var editTagsArray = [];
@@ -44,10 +47,8 @@ var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
 var pictureClientSize = 210;
 var pictureid = 0;
 var xxhashsalt = 4152;
-var lastZ = 0;
 var pictureScale = 1;
 var firstRun = true;
-var loadnew = true;
 var tagListExpanded = false;
 var sqlalreadysetup = false;
 var clearTagButtonShown = false;
@@ -141,7 +142,6 @@ function init() {
     catch(err) {
       db.prepare("ALTER TABLE directories ADD COLUMN watchSub integer;").run();
       db.prepare("UPDATE directories SET watchSub = ?;").run(1);
-      console.log("added");
     }
     removeElementById("setup");
     var settingsEFQuery = db.prepare('SELECT * FROM settings WHERE name LIKE ? AND value = ?;').all('exclude%', 1);
@@ -277,7 +277,6 @@ function startupScan() {
   document.getElementById('startupScanScreen').style.display = "none";
 }
 function fileChange(event, file) {
-  console.log(event, file);
   var picpath = file.substring(0, file.lastIndexOf("\\"));
   var filename = file.split('\\').pop();
   if(event == "add") {
@@ -347,7 +346,6 @@ function scrollFunctions() {
   var picsPerLine = Math.floor(obj.clientWidth/(pictureScale*pictureClientSize));
   scrollingTopside(obj, picsPerLine);
   scrollingBottomside(obj, picsPerLine);
-  checkIfAtBottom(obj);
   if(document.getElementById('contextmenu').style.display == "block") {
     hideContextMenu(contextmenuelement);
   }
@@ -456,14 +454,14 @@ function confirmSettings() {
     for(i = 0; i < settingsDirectories.length; i += 1) {
       for(x = 0; x < dbdirs.length; x += 1) {
         if(dbdirs[x].directory == settingsDirectories[i].directory) {
-          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ?, watchSub = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].watchSub, settingsDirectories[i].directory.stripSlashes());
+          db.prepare("UPDATE directories SET includeSubdirectories = ?, watch = ?, watchSub = ? WHERE directory = ?;").run(settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].watchSub, settingsDirectories[i].directory);
           settingsDirectories.splice(i, 1);
           dbdirs.splice(x, 1);
         }
       }
     }
     for(i = 0; i < dbdirs.length; i += 1) {
-      db.prepare("DELETE FROM directories WHERE directory = ?;").run(dbdirs[i].directory.stripSlashes());
+      db.prepare("DELETE FROM directories WHERE directory = ?;").run(dbdirs[i].directory);
     }
     for(i = 0; i < settingsDirectories.length; i += 1) {
       db.prepare("INSERT INTO directories VALUES (?, ?, ?, ?);").run(settingsDirectories[i].directory.stripSlashes(), settingsDirectories[i].includeSubdirectories, settingsDirectories[i].watch, settingsDirectories[i].watchSub)
@@ -524,6 +522,7 @@ function toggleSettingsWindow () {
     var directoryname;
     for(i = 0; i < settingsDirectories.length; i += 1) {
       directoryq = settingsDirectories[i].directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      console.log(directoryq);
       settingsDirectories[i].directory = settingsDirectories[i].directory.addSlashes();
       firstListing = "";
       if(i == 0) {
@@ -593,7 +592,7 @@ function toggleIncludeSubdirectories(directory, elm) {
   }
   var i;
   for(i = 0; i < settingsDirectories.length; i += 1) {
-    if(settingsDirectories[i].directory == directory) {
+    if(settingsDirectories[i].directory == directory.addSlashes()) {
       settingsDirectories[i].includeSubdirectories = toSet;
       break;
     }
@@ -613,7 +612,7 @@ function toggleWatchDirectory(directory, elm) {
   }
   var i;
   for(i = 0; i < settingsDirectories.length; i += 1) {
-    if(settingsDirectories[i].directory == directory) {
+    if(settingsDirectories[i].directory == directory.addSlashes()) {
       settingsDirectories[i].watch = toSet;
       break;
     }
@@ -633,7 +632,7 @@ function toggleWatchSubdirectories(directory, elm) {
   }
   var i;
   for(i = 0; i < settingsDirectories.length; i += 1) {
-    if(settingsDirectories[i].directory == directory) {
+    if(settingsDirectories[i].directory == directory.addSlashes()) {
       settingsDirectories[i].watchSub = toSet;
       break;
     }
@@ -670,30 +669,30 @@ function settingsAddDirectory(directory) {
     }
     var i;
     for(i = 0; i < settingsDirectories.length; i += 1) {
-      if(settingsDirectories[i].directory == directory) {
+      if(settingsDirectories[i].directory == directory.addSlashes()) {
         cont = false;
       }
     }
     if(cont) {
       restartNeeded = true;
-      directoryq = directory.addAllSlashes();
+      directoryq = directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       directory = directory.addSlashes();
       settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1, watchSub: 1});
-      document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory.stripSlashes() + "\">" + directory.stripSlashes().split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq + "', this)\"></div><div class=\"incSubPic " + watch + "\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watchSub + "\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+      document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory.stripSlashes() + "\">" + directory.stripSlashes().split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this)\"></div><div class=\"incSubPic incSubYes\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic incSubYes\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
     }
   }
 }
 String.prototype.addSlashes = function() {
 return this.replace(/\'/g,'\\\'').replace(/\"/g,'\\"');
 }
-String.prototype.addAllSlashes = function() {
-return this.replace(/\\/g,'\\\\').replace(/\'/g,'\\\'').replace(/\"/g,'\\"').replace(/\0/g,'\\0');
+String.prototype.addSlashSlashes = function() {
+return this.replace(/\\/g,'\\\\');
 }
 String.prototype.stripSlashes = function() {
 return this.replace(/\\'/g,'\'').replace(/\\"/g,'"');
 }
-String.prototype.stripAllSlashes = function() {
-return this.replace(/\\'/g,'\'').replace(/\\"/g,'"').replace(/\\0/g,'\0').replace(/\\\\/g,'\\');
+String.prototype.stripSlashSlashes = function() {
+return this.replace(/\\\\/g,'\\');
 }
 function filterFiletype (filetype) {
   var i;
@@ -722,70 +721,71 @@ function filterFiletype (filetype) {
   loadPictures();
 }
 function scrollingBottomside(obj, picsPerLine) {
-  var i;
-  var element;
-  var x = Math.ceil((obj.scrollTop + obj.clientHeight)/(pictureScale*pictureClientSize))*(Math.floor(obj.clientWidth/(pictureScale*pictureClientSize)));
-  if(x > lastX && x <= pictureid) {
-    for(i = x - picsPerLine; i < x; i += 1) {
-      element = document.getElementById('picture' + i);
-      if(element.tagName.toLowerCase() == "video") {
-        element.play();
+  var picPath;
+  var picFileName;
+  var extension;
+  var addMulti;
+  var linesShownNow = Math.ceil((obj.scrollTop+document.getElementById('mainpagecontent').clientHeight)/((pictureScale*pictureClientSize)+4));
+  if(linesShownNow > linesShown) {
+    loadMorePictures();
+    while(picsShownUpTo < picsPerLine*(linesShownNow+2) && picsShownUpTo < piccount) {
+      if(!multiSelectionActive) {
+        addMulti = "";
+      } else if(multiSelectionActive && selectedPictures.indexOf(pictures[picsShownUpTo].id) != -1) {
+        addMulti = " selectedImage";
+      } else if(multiSelectionActive) {
+        addMulti = " notSelectedImage";
       }
-    }
-    lastX = x;
-  } else if(x < lastX && x < pictureid && lastX < pictureid) {
-    for(i = x; i < x + picsPerLine; i += 1) {
-      element = document.getElementById('picture' + i);
-      if(element.tagName.toLowerCase() == "video") {
-        element.pause();
+      picPath = pictures[picsShownUpTo].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      picFileName = pictures[picsShownUpTo].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      extension = pictures[picsShownUpTo].filename.substr(pictures[picsShownUpTo].filename.lastIndexOf('.') + 1).toLowerCase();
+      if(extension == "webm" || extension == "mp4") {
+        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsShownUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
+      } else {
+        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsShownUpTo + "\" />";
       }
+      picsShownUpTo += 1;
     }
-    lastX = x;
-  } else if (x > lastX && x > pictureid && pictureid == piccount && lastX < pictureid) {
-    var picsToPlay = picsPerLine - (x - pictureid);
-    var p;
-    for(i = 0; i < picsToPlay; i += 1) {
-      p = lastX + i;
-      element = document.getElementById('picture' + p);
-      if(element.tagName.toLowerCase() == "video") {
-        element.play();
-      }
+  } else if(linesShownNow < linesShown) {
+    while(picsShownUpTo > linesShownNow*picsPerLine) {
+      picsShownUpTo -= 1;
+      removeElementById("picture" + picsShownUpTo);
     }
-    lastX = x;
-  } else if (x < lastX && lastX > pictureid && x < pictureid) {
-    var p;
-    var picsToPause = pictureid - x;
-    for(i = 0; i < picsToPause; i += 1) {
-      p = x + i;
-      element = document.getElementById('picture' + p);
-      if(element.tagName.toLowerCase() == "video") {
-        element.pause();
-      }
-    }
-    lastX = x;
   }
+  linesShown = linesShownNow;
 }
 function scrollingTopside(obj, picsPerLine) {
-  var i;
-  var element;
-  var z = Math.floor((obj.scrollTop)/(pictureScale*pictureClientSize))*(Math.floor(obj.clientWidth/(pictureScale*pictureClientSize)));
-  if(z > 0 && z > lastZ && z < pictureid) {
-    for(i = z - picsPerLine; i < z; i += 1) {
-      element = document.getElementById('picture' + i);
-      if(element.tagName.toLowerCase() == "video") {
-        element.pause();
+  var picPath;
+  var picFileName;
+  var extension;
+  var addMulti;
+  var linesHiddenNow = Math.floor(obj.scrollTop/((pictureScale*pictureClientSize)+4));
+  if(linesHiddenNow > linesHidden) {
+    while(picsHiddenUpTo < picsPerLine*linesHiddenNow) {
+      removeElementById("picture" + picsHiddenUpTo);
+      picsHiddenUpTo += 1;
+    }
+  } else if(linesHiddenNow < linesHidden) {
+    while(picsHiddenUpTo > picsPerLine*(linesHiddenNow-2) && picsHiddenUpTo > 0) {
+      picsHiddenUpTo -= 1;
+      if(!multiSelectionActive) {
+        addMulti = "";
+      } else if(multiSelectionActive && selectedPictures.indexOf(pictures[picsHiddenUpTo].id) != -1) {
+        addMulti = " selectedImage";
+      } else if(multiSelectionActive) {
+        addMulti = " notSelectedImage";
+      }
+      picPath = pictures[picsHiddenUpTo].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      picFileName = pictures[picsHiddenUpTo].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      extension = pictures[picsHiddenUpTo].filename.substr(pictures[picsHiddenUpTo].filename.lastIndexOf('.') + 1).toLowerCase();
+      if(extension == "webm" || extension == "mp4") {
+        document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
+      } else {
+        document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" />";
       }
     }
-    lastZ = z;
-  } else if (z < lastZ && z < pictureid) {
-    for(i = z; i < z + picsPerLine; i += 1) {
-      element = document.getElementById('picture' + i);
-      if(element.tagName.toLowerCase() == "video") {
-        element.play();
-      }
-    }
-    lastZ = z;
   }
+  linesHidden = Math.floor(obj.scrollTop/((pictureScale*pictureClientSize)+4));
 }
 function showInFolder (id) {
   var picFilePath = db.prepare("SELECT filename, path FROM pictures WHERE id = ?;").get(id);
@@ -822,18 +822,6 @@ function hideContextMenu(el) {
   document.getElementById('contextmenu').style.display = "none";
   el.removeEventListener('outclick', menuFunc);
 }
-function checkIfAtBottom(scrollcontainer) {
-  obj = scrollcontainer;
-  obj2 = document.getElementById("picturecontainer");
-  if(obj2.scrollHeight - obj.clientHeight - obj.scrollTop < (pictureScale*pictureClientSize)) {
-    if(loadnew && canLoadMore) {
-      loadnew = false;
-      loadMorePictures();
-      loadnew = true;
-      checkIfAtBottom(obj);
-    }
-  }
-}
 function closeFileDetails() {
   fileDetailsOpen = false;
   var previewedFile = document.getElementById('previewedfile');
@@ -863,7 +851,7 @@ function toggleMultiSelection() {
       document.getElementById("multiSelectionRemoveTagsButton").style.visibility = "visible";
       document.getElementById("multiSelectionClearSelectionButton").style.visibility = "visible";
       document.getElementById("multiSelectionCounter").style.visibility = "visible";
-      for(i = 0; i < pictureid; i += 1) {
+      for(i = picsHiddenUpTo; i < picsShownUpTo; i += 1) {
         document.getElementById('picture' + i).classList.add("notSelectedImage");
       }
       multiSelectionActive = true;
@@ -873,7 +861,7 @@ function toggleMultiSelection() {
       document.getElementById("multiSelectionRemoveTagsButton").style.visibility = "hidden";
       document.getElementById("multiSelectionClearSelectionButton").style.visibility = "hidden";
       document.getElementById("multiSelectionCounter").style.visibility = "hidden";
-      for(i = 0; i < pictureid; i += 1) {
+      for(i = picsHiddenUpTo; i < picsShownUpTo; i += 1) {
         if(document.getElementById('picture' + i).classList.contains("notSelectedImage")) {
           document.getElementById('picture' + i).classList.remove("notSelectedImage");
         } else {
@@ -888,9 +876,11 @@ function toggleMultiSelection() {
 }
 function multiSelectionClear() {
   var i;
-  for(i = 0; i < selectedPictures.length; i += 1) {
-    document.getElementById("picture" + selectedPictures[i]).classList.remove("selectedImage");
-    document.getElementById("picture" + selectedPictures[i]).classList.add("notSelectedImage");
+  for(i = picsHiddenUpTo; i < picsShownUpTo; i += 1) {
+    if(document.getElementById('picture' + i).classList.contains("selectedImage")) {
+      document.getElementById('picture' + i).classList.remove("selectedImage");
+      document.getElementById('picture' + i).classList.add("notSelectedImage");
+    }
   }
   selectedPictures = [];
   document.getElementById("multiSelectionCounter").innerHTML = "Pictures selected: " + selectedPictures.length;
@@ -901,16 +891,17 @@ function multiSelectionAction(action) {
   }
 }
 function openDetails(picdbid) {
+  console.log(picdbid);
   var picid = pictureidarray.indexOf(picdbid);
   if(multiSelectionActive) {
-    if(selectedPictures.indexOf(picid) == -1) {
+    if(selectedPictures.indexOf(picdbid) == -1) {
       document.getElementById("picture" + picid).classList.add("selectedImage");
       document.getElementById("picture" + picid).classList.remove("notSelectedImage");
-      selectedPictures.push(picid);
+      selectedPictures.push(picdbid);
     } else {
       document.getElementById("picture" + picid).classList.remove("selectedImage");
       document.getElementById("picture" + picid).classList.add("notSelectedImage");
-      selectedPictures.splice(selectedPictures.indexOf(picid), 1);
+      selectedPictures.splice(selectedPictures.indexOf(picdbid), 1);
     }
     document.getElementById("multiSelectionCounter").innerHTML = "Pictures selected: " + selectedPictures.length;
   } else {
@@ -1051,16 +1042,16 @@ function editTagsConfirm (action, picid, multi) {
     for(x = 0; x < picidlength; x += 1) {
       var cont = true;
       if(action == "add" && multi) {
-        if(db.prepare("SELECT count(*) FROM tags WHERE tag = ? AND id = ?;").get(editTagsArray[i], pictureidarray[picid[x]])["count(*)"] > 0) {
+        if(db.prepare("SELECT count(*) FROM tags WHERE tag = ? AND id = ?;").get(editTagsArray[i], picid[x])["count(*)"] > 0) {
           cont = false;
         }
       } else if(action == "remove" && multi) {
-        if(db.prepare("SELECT count(*) FROM tags WHERE tag = ? AND id = ?;").get(editTagsArray[i], pictureidarray[picid[x]])["count(*)"] == 0) {
+        if(db.prepare("SELECT count(*) FROM tags WHERE tag = ? AND id = ?;").get(editTagsArray[i], picid[x])["count(*)"] == 0) {
           cont = false;
         }
       }
       if(multi && cont) {
-        db.prepare(query).run(editTagsArray[i], pictureidarray[picid[x]]);
+        db.prepare(query).run(editTagsArray[i], picid[x]);
       } else if(!multi) {
         db.prepare(query).run(editTagsArray[i], picid);
       }
@@ -1558,35 +1549,26 @@ function hideOverlay() {
   }
 }
 function loadMorePictures() {
-  if(canLoadMore) {
+  var mainWidth = document.getElementById("mainpagecontent").clientWidth;
+  if(canLoadMore && (linesShown+4)*Math.floor(mainWidth/(pictureScale*pictureClientSize)) > pictureid) {
     var mainHeight = document.getElementById("mainpagecontent").clientHeight;
-    var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-    var picAmount = (Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.floor(mainHeight/(pictureScale*pictureClientSize)));
+    var picAmount = Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.ceil(mainHeight/(pictureScale*pictureClientSize));
     if(pictureid + picAmount > piccount) {
       picAmount = piccount - pictureid;
       canLoadMore = false;
     }
     var picState = pictureid + picAmount;
     for(i = pictureid; i < picState; i+=1) {
-      picPath = pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-      picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-      extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
-      if(extension == "mp4" || extension == "webm") {
-        document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>");
-      } else {
-        document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>");
-      }
+      document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\" id=\"pic" + pictureid + "container\"></div>");
       picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
       pictureidarray.push(pictures[i].id);
-      if(multiSelectionActive) {
-        document.getElementById("picture" + pictureid).classList.add("notSelectedImage");
-      }
       pictureid += 1;
     }
   }
 }
 function loadPictures() {
   document.getElementById("mainpagecontent").scrollTop = 0;
+  picsHiddenUpTo = 0;
   picPaths = [];
   pictureidarray = [];
   pictureid = 0;
@@ -1595,7 +1577,7 @@ function loadPictures() {
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
   var mainHeight = document.getElementById("mainpagecontent").clientHeight;
   var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-  var picAmount = 3*(Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.floor(mainHeight/(pictureScale*pictureClientSize)));
+  var picAmount = (Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.ceil(mainHeight/(pictureScale*pictureClientSize)))+Math.floor(mainWidth/(pictureScale*pictureClientSize));
   var extension;
   var excludeQuery;
   if(excludedFiletypes.length == 0) {
@@ -1682,18 +1664,26 @@ function loadPictures() {
     canLoadMore = false;
   }
   var picPath;
+  var addMulti;
   var picFileName;
   if(orderBy == "filename") {
     pictures.sort(naturalSort({order: sortingOrder}));
   }
   for(i = 0; i < picAmount; i+=1) {
+    if(!multiSelectionActive) {
+      addMulti = "";
+    } else if(multiSelectionActive && selectedPictures.indexOf(pictures[i].id) != -1) {
+      addMulti = " selectedImage";
+    } else if(multiSelectionActive) {
+      addMulti = " notSelectedImage";
+    }
     picPath = pictures[i].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
     picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
     extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
     if(extension == "webm" || extension == "mp4") {
-      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" loop muted><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
+      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\" id=\"pic" + pictureid + "container\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + pictureid + "\" loop muted autoplay><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
     } else {
-      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture\" id=\"picture" + pictureid + "\" /></div>";
+      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\" id=\"pic" + pictureid + "container\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + pictureid + "\" /></div>";
     }
     picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
     pictureidarray.push(pictures[i].id);
@@ -1705,14 +1695,9 @@ function loadPictures() {
   if(picAmount < picAmountShown) {
     picAmountShown = picAmount;
   }
-  for(i = 0; i < picAmountShown; i += 1) {
-    element = document.getElementById("picture" + i);
-    if(element.tagName.toLowerCase() == "video") {
-      element.play();
-    }
-  }
-  lastX = picAmountShown;
-  lastZ = 0;
+  picsShownUpTo = picAmountShown;
+  linesHidden = 0;
+  linesShown = Math.ceil(mainHeight/(pictureScale*pictureClientSize));
 }
 function returnMatching(array1, array2) {
   return array1.filter(function(n){ return array2.indexOf(n)>-1?n:false;});

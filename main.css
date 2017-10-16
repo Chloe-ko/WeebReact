@@ -483,12 +483,26 @@ html,body {
   margin-left: 10px;
 }
 #mainpagecontent {
-  width: calc(100% - 10px);
+  width: calc(100% - 0px);
   height: 100%;
   word-wrap: break-word;
   overflow-y: auto;
   overflow-x: hidden;
   text-align: center;
+}
+#mainpagecontent::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+}
+#mainpagecontent::-webkit-scrollbar-track {
+  -webkit-box-shadow: 0;
+  border-radius: 0px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+#mainpagecontent::-webkit-scrollbar-thumb {
+  border-radius: 0px;
+  -webkit-box-shadow: 0;
 }
 #filepreview {
   display: inline-block;
