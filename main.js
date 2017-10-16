@@ -13,14 +13,14 @@ const fs = require('fs');
 
 var checkingForUpdate = false;
 var downloadingUpdate = false;
-var promtedQuit = false;
+var promptedQuit = false;
 
 let win;
 
 
 autoUpdater.setFeedURL(updateFeedUrl);
 autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
-  if(!promtedQuit) {
+  if(!promptedQuit) {
     downloadingUpdate = false;
     let message = 'An update for WeebReact is now available. It will be installed the next time you restart the application.';
     dialog.showMessageBox({
