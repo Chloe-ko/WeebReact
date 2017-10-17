@@ -23,6 +23,7 @@ var expandAnim;
 var sortingDropdownHide;
 var orderDropdownHide;
 var filterDropdownHide;
+var zoomDropdownHide;
 var canLoadMore;
 var tagSettingChanged;
 var nsfwSettingChanged;
@@ -32,8 +33,12 @@ var linesHidden;
 var linesShown;
 var picsHiddenUpTo;
 var picsShownUpTo;
+var lastScrollTop;
+var lastPicsPerLine;
 var orderBy = "datetime(timeAdded)";
 var sortingOrder = "DESC";
+var zoomClass = "piczoom100";
+var mainZoomClass = "mainzoom100";
 var editTagsArray = [];
 var editTagsAlreadyAssigned = [];
 var searchArrayInc = [];
@@ -44,10 +49,10 @@ var copiedFiles = [];
 var selectedPictures = [];
 var watcher = [];
 var filetypes = ["jpg", "png", "gif", "webm", "mp4"];
-var pictureClientSize = 210;
 var pictureid = 0;
 var xxhashsalt = 4152;
 var pictureScale = 1;
+var pictureClientSize = 210;
 var firstRun = true;
 var tagListExpanded = false;
 var sqlalreadysetup = false;
@@ -55,6 +60,7 @@ var clearTagButtonShown = false;
 var sortingDropdownShown = false;
 var orderDropdownShown = false;
 var filterDropdownShown = false;
+var zoomDropdownShown = false;
 var aboutPageShown = false;
 var fileDetailsOpen = false;
 var settingsShown = false;
@@ -92,7 +98,7 @@ function openURL(url) {
   shell.openExternal(url);
 }
 function setContainerheight () {
-  document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor(document.getElementById("mainpagecontent").clientWidth/(pictureScale*pictureClientSize)))*(pictureScale*pictureClientSize) + "px";
+  document.getElementById("picturescrollcontainer").style.height = Math.ceil(piccount/Math.floor((document.getElementById("mainpagecontent").clientWidth)/(pictureClientSize)))*(pictureClientSize) + "px";
 }
 function init() {
   document.getElementById("aboutTitle").innerHTML = "WeebReact<br />v" + jsonContent.version;
@@ -189,6 +195,14 @@ function init() {
     document.getElementById("mainpageoverlay").style.display = "none";
     startupScan();
   }
+}
+function setZoom(level) {
+  pictureScale = level;
+  zoomClass = "piczoom" + pictureScale*100;
+  mainZoomClass = "mainzoom" + pictureScale*100;
+  pictureClientSize = ((pictureScale*200)+10);
+  document.getElementById('zoomDropdownText').innerHTML = "Zoom: " + (pictureScale*100) + "%";
+  loadPictures();
 }
 function startupScan() {
   var knownFiles = db.prepare("SELECT id,filename,path,hash,available FROM pictures;").all();
@@ -340,16 +354,6 @@ function addFile (picpath, filename, filehash) {
     db.prepare(insertquery).run(filename, picpath, filehash, 0, moment(fs.statSync(picpath + "\\" + filename).mtime).format("YYYY-MM-DD HH:mm:ss"), 4, extension, 1);
       loadPictures();
   }
-}
-function scrollFunctions() {
-  var obj = document.getElementById("mainpagecontent");
-  var picsPerLine = Math.floor(obj.clientWidth/(pictureScale*pictureClientSize));
-  scrollingTopside(obj, picsPerLine);
-  scrollingBottomside(obj, picsPerLine);
-  if(document.getElementById('contextmenu').style.display == "block") {
-    hideContextMenu(contextmenuelement);
-  }
-  setContainerheight();
 }
 function toggleSettingsExcludeFiletypes (filetype) {
   var element = document.getElementById('excludefiletype' + filetype);
@@ -685,14 +689,11 @@ function settingsAddDirectory(directory) {
 String.prototype.addSlashes = function() {
 return this.replace(/\'/g,'\\\'').replace(/\"/g,'\\"');
 }
-String.prototype.addSlashSlashes = function() {
-return this.replace(/\\/g,'\\\\');
-}
 String.prototype.stripSlashes = function() {
 return this.replace(/\\'/g,'\'').replace(/\\"/g,'"');
 }
-String.prototype.stripSlashSlashes = function() {
-return this.replace(/\\\\/g,'\\');
+String.prototype.stripIllegal = function() {
+  return this.replace(/\\/g,'').replace(/\"/g,'');
 }
 function filterFiletype (filetype) {
   var i;
@@ -720,14 +721,39 @@ function filterFiletype (filetype) {
   }
   loadPictures();
 }
-function scrollingBottomside(obj, picsPerLine) {
+function scrollFunctions() {
+  var obj = document.getElementById("mainpagecontent");
+  var picsPerLine = Math.floor((obj.clientWidth)/(pictureClientSize));
+  if(picsPerLine > lastPicsPerLine) {
+    loadBottom(obj, picsPerLine);
+    lastPicsPerLine = picsPerLine;
+    lastScrollTop = obj.scrollTop;
+  } else if(picsPerLine < lastPicsPerLine) {
+    loadTop(obj, picsPerLine);
+    lastPicsPerLine = picsPerLine;
+    lastScrollTop = obj.scrollTop;
+  }
+  if(obj.scrollTop > lastScrollTop) {
+    scrollingBottomside(obj, picsPerLine);
+    scrollingTopside(obj, picsPerLine);
+    lastScrollTop = obj.scrollTop;
+  } else if(obj.scrollTop < lastScrollTop) {
+    scrollingTopside(obj, picsPerLine);
+    scrollingBottomside(obj, picsPerLine);
+    lastScrollTop = obj.scrollTop;
+  }
+  if(document.getElementById('contextmenu').style.display == "block") {
+    hideContextMenu(contextmenuelement);
+  }
+  setContainerheight();
+}
+function loadBottom(obj, picsPerLine) {
   var picPath;
   var picFileName;
   var extension;
   var addMulti;
-  var linesShownNow = Math.ceil((obj.scrollTop+document.getElementById('mainpagecontent').clientHeight)/((pictureScale*pictureClientSize)+4));
-  if(linesShownNow > linesShown) {
-    loadMorePictures();
+  var linesShownNow = Math.ceil((obj.scrollTop+document.getElementById('mainpagecontent').clientHeight)/((pictureClientSize)+4));
+  var linesHiddenNow = Math.floor(obj.scrollTop/((pictureClientSize)+4));
     while(picsShownUpTo < picsPerLine*(linesShownNow+2) && picsShownUpTo < piccount) {
       if(!multiSelectionActive) {
         addMulti = "";
@@ -740,9 +766,74 @@ function scrollingBottomside(obj, picsPerLine) {
       picFileName = pictures[picsShownUpTo].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       extension = pictures[picsShownUpTo].filename.substr(pictures[picsShownUpTo].filename.lastIndexOf('.') + 1).toLowerCase();
       if(extension == "webm" || extension == "mp4") {
-        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsShownUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
+        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsShownUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
       } else {
-        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsShownUpTo + "\" />";
+        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsShownUpTo + "\" />";
+      }
+      picsShownUpTo += 1;
+    }
+      while(picsHiddenUpTo < picsPerLine*linesHiddenNow) {
+        removeElementById("picture" + picsHiddenUpTo);
+        picsHiddenUpTo += 1;
+      }
+      linesShown = linesShownNow;
+      linesHidden = linesHiddenNow;
+}
+function loadTop(obj, picsPerLine) {
+  var picPath;
+  var picFileName;
+  var extension;
+  var addMulti;
+  var linesShownNow = Math.ceil((obj.scrollTop+document.getElementById('mainpagecontent').clientHeight)/((pictureClientSize)+4));
+  var linesHiddenNow = Math.floor(obj.scrollTop/((pictureClientSize)+4));
+    while(picsShownUpTo > linesShownNow*picsPerLine) {
+      picsShownUpTo -= 1;
+      removeElementById("picture" + picsShownUpTo);
+    }
+      while(picsHiddenUpTo > picsPerLine*(linesHiddenNow-2) && picsHiddenUpTo > 0) {
+        picsHiddenUpTo -= 1;
+        if(!multiSelectionActive) {
+          addMulti = "";
+        } else if(multiSelectionActive && selectedPictures.indexOf(pictures[picsHiddenUpTo].id) != -1) {
+          addMulti = " selectedImage";
+        } else if(multiSelectionActive) {
+          addMulti = " notSelectedImage";
+        }
+        picPath = pictures[picsHiddenUpTo].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+        picFileName = pictures[picsHiddenUpTo].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+        extension = pictures[picsHiddenUpTo].filename.substr(pictures[picsHiddenUpTo].filename.lastIndexOf('.') + 1).toLowerCase();
+        if(extension == "webm" || extension == "mp4") {
+          document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
+        } else {
+          document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" />";
+        }
+      }
+
+  linesShown = linesShownNow;
+  linesHidden = linesHiddenNow;
+}
+function scrollingBottomside(obj, picsPerLine) {
+  var picPath;
+  var picFileName;
+  var extension;
+  var addMulti;
+  var linesShownNow = Math.ceil((obj.scrollTop+document.getElementById('mainpagecontent').clientHeight)/((pictureClientSize)+4));
+  if(linesShownNow > linesShown) {
+    while(picsShownUpTo < picsPerLine*(linesShownNow+2) && picsShownUpTo < piccount) {
+      if(!multiSelectionActive) {
+        addMulti = "";
+      } else if(multiSelectionActive && selectedPictures.indexOf(pictures[picsShownUpTo].id) != -1) {
+        addMulti = " selectedImage";
+      } else if(multiSelectionActive) {
+        addMulti = " notSelectedImage";
+      }
+      picPath = pictures[picsShownUpTo].path.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      picFileName = pictures[picsShownUpTo].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
+      extension = pictures[picsShownUpTo].filename.substr(pictures[picsShownUpTo].filename.lastIndexOf('.') + 1).toLowerCase();
+      if(extension == "webm" || extension == "mp4") {
+        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsShownUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
+      } else {
+        document.getElementById("pic" + picsShownUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsShownUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsShownUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsShownUpTo].path + "\\" + pictures[picsShownUpTo].filename + "\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsShownUpTo + "\" />";
       }
       picsShownUpTo += 1;
     }
@@ -759,13 +850,8 @@ function scrollingTopside(obj, picsPerLine) {
   var picFileName;
   var extension;
   var addMulti;
-  var linesHiddenNow = Math.floor(obj.scrollTop/((pictureScale*pictureClientSize)+4));
-  if(linesHiddenNow > linesHidden) {
-    while(picsHiddenUpTo < picsPerLine*linesHiddenNow) {
-      removeElementById("picture" + picsHiddenUpTo);
-      picsHiddenUpTo += 1;
-    }
-  } else if(linesHiddenNow < linesHidden) {
+  var linesHiddenNow = Math.floor(obj.scrollTop/((pictureClientSize)+4));
+  if(linesHiddenNow < linesHidden) {
     while(picsHiddenUpTo > picsPerLine*(linesHiddenNow-2) && picsHiddenUpTo > 0) {
       picsHiddenUpTo -= 1;
       if(!multiSelectionActive) {
@@ -779,13 +865,18 @@ function scrollingTopside(obj, picsPerLine) {
       picFileName = pictures[picsHiddenUpTo].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       extension = pictures[picsHiddenUpTo].filename.substr(pictures[picsHiddenUpTo].filename.lastIndexOf('.') + 1).toLowerCase();
       if(extension == "webm" || extension == "mp4") {
-        document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
+        document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<video onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" loop muted autoplay><source src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" type=\"video/" + extension + "\"></video>";
       } else {
-        document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" />";
+        document.getElementById("pic" + picsHiddenUpTo + "container").innerHTML = "<img onclick=\"openDetails(" + pictures[picsHiddenUpTo].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[picsHiddenUpTo].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[picsHiddenUpTo].path + "\\" + pictures[picsHiddenUpTo].filename + "\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + picsHiddenUpTo + "\" />";
       }
     }
+  } else if(linesHiddenNow > linesHidden) {
+    while(picsHiddenUpTo < picsPerLine*linesHiddenNow) {
+      removeElementById("picture" + picsHiddenUpTo);
+      picsHiddenUpTo += 1;
+    }
   }
-  linesHidden = Math.floor(obj.scrollTop/((pictureScale*pictureClientSize)+4));
+  linesHidden = linesHiddenNow;
 }
 function showInFolder (id) {
   var picFilePath = db.prepare("SELECT filename, path FROM pictures WHERE id = ?;").get(id);
@@ -801,7 +892,7 @@ function copyLocation(id) {
 function showContextMenu(event, el, picid) {
   var contextmenu = document.getElementById('contextmenu');
   contextmenuelement = el;
-  contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + "); hideContextMenu(this.parentNode.parentNode);\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"openAddTagsDialog('add', " + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Add Tags</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"openAddTagsDialog('remove', " + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Remove Tags</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"copyLocation(" + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Copy Location</div></div><div class=\"contextmenuentrybottom contextmenuentry\"><div class=\"contextmenutext\">Exclude</div></div>";
+  contextmenu.innerHTML = "<div class=\"contextmenuentrytop contextmenuentry\"><div class=\"contextmenutext\" onclick=\"showInFolder(" + picid + "); hideContextMenu(this.parentNode.parentNode);\">Show in Folder</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"openAddTagsDialog('add', " + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Add Tags</div></div><div class=\"contextmenuentry contextmenuentrycenter\" onclick=\"openAddTagsDialog('remove', \[" + picid + "\]); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Remove Tags</div></div><div class=\"contextmenuentry contextmenuentrybottom\" onclick=\"copyLocation(" + picid + "); hideContextMenu(this.parentNode.parentNode);\"><div class=\"contextmenutext\">Copy Location</div></div>";
   var cursorPosition = getCursorPosition(event);
   contextmenu.style.display = "block";
   if(document.getElementById('content').clientWidth - cursorPosition[0] < contextmenu.clientWidth) {
@@ -829,6 +920,10 @@ function closeFileDetails() {
     previewedFile.pause();
   }
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
+  var i;
+  for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+    tagsForAutocomplete[i].tag = tagsForAutocomplete[i].tag.addSlashes();
+  }
   var opa = 1;
   var anim = setInterval(animateCloseDetails, 5);
   function animateCloseDetails() {
@@ -856,7 +951,7 @@ function toggleMultiSelection() {
       }
       multiSelectionActive = true;
     } else {
-      document.getElementById("selectMultipleButtonText").innerHTML = "Select multiple";
+      document.getElementById("selectMultipleButtonText").innerHTML = "Multi-selection";
       document.getElementById("multiSelectionAddTagsButton").style.visibility = "hidden";
       document.getElementById("multiSelectionRemoveTagsButton").style.visibility = "hidden";
       document.getElementById("multiSelectionClearSelectionButton").style.visibility = "hidden";
@@ -891,7 +986,6 @@ function multiSelectionAction(action) {
   }
 }
 function openDetails(picdbid) {
-  console.log(picdbid);
   var picid = pictureidarray.indexOf(picdbid);
   if(multiSelectionActive) {
     if(selectedPictures.indexOf(picdbid) == -1) {
@@ -940,7 +1034,8 @@ function openDetails(picdbid) {
       copyLocation(picdbid);
     };
     for(i = 0; i < tags.length; i += 1) {
-      tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag + "</div><img src=\"img/close.webp\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
+      tags[i].tag = tags[i].tag.addSlashes();
+      tagHtml += "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + tags[i].tag + "\', false);\" oncontextmenu=\"addSearchTag(\'" + tags[i].tag + "\', true);\" class=\"picTagText\">" + tags[i].tag.stripSlashes() + "</div><img src=\"img/close.webp\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + tags[i].tag + "\', \'" + pic.id + "\', this)\" /></div>";
     }
     details.push("<div class=\"fileDetailsCategory\"><div class=\"fileDetailsName\">Tags</div><div class=\"fileDetailsDetails\" id=\"fileDetailsDetails\">" + tagHtml + "</div></div>");
     var i;
@@ -987,26 +1082,51 @@ function removeTag (tagname, picid, element) {
   removeElement(element.parentNode);
 }
 function openAddTagsDialog(action, picid) {
+  var i;
+  var z;
   var multiSelection = false;
   if(picid instanceof Array) {
     multiSelection = true;
   }
-  removeElementById("editTagsInput");
-  document.getElementById('editTagsAddButton').insertAdjacentHTML("beforeBegin", "<input type=\"text\" id=\"editTagsInput\" oninput=\"autocompleteEditTags();\" onfocus=\"autocompleteEditTags();\" onkeypress=\"if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm(\'" + action + "\', [" + picid + "], " + multiSelection + ");}}\" />");
-  tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
-  if(!multiSelection) {
-    editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
-  } else {
-    editTagsAlreadyAssigned = [];
-  }
-  var i;
-  var z;
-  for(i = 0; i < tagsForAutocomplete.length; i += 1) {
-    for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
-      if(tagsForAutocomplete[i].tag == editTagsAlreadyAssigned[z].tag) {
-        tagsForAutocomplete.splice(i, 1);
+  if(!(multiSelection && action == "remove")) {
+    document.getElementById('editTagsDialogueAdd').style.display = "block";
+    document.getElementById('editTagsDialogueRemove').style.display = "none";
+    removeElementById("editTagsInput");
+    document.getElementById('editTagsAddButton').insertAdjacentHTML("beforeBegin", "<input type=\"text\" id=\"editTagsInput\" oninput=\"autocompleteEditTags();\" onfocus=\"autocompleteEditTags();\" onkeypress=\"if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm(\'" + action + "\', [" + picid + "], " + multiSelection + ");}}\" />");
+    tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
+    if(!multiSelection) {
+      editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
+    } else {
+      editTagsAlreadyAssigned = [];
+    }
+    for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+      tagsForAutocomplete[i].tag = tagsForAutocomplete[i].tag.addSlashes();
+    }
+    for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+      for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
+        if(tagsForAutocomplete[i].tag == editTagsAlreadyAssigned[z].tag) {
+          tagsForAutocomplete.splice(i, 1);
+        }
       }
     }
+  } else {
+    document.getElementById('editTagsDialogueAdd').style.display = "none";
+    document.getElementById('editTagsDialogueRemove').style.display = "block";
+    var tagsToBeRemoved = [];
+    var tagsArray;
+    for(i = 0; i < picid.length; i += 1) {
+      tagsArray = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid[i]);
+      for(z = 0; z < tagsArray.length; z += 1) {
+        if(tagsToBeRemoved.indexOf(tagsArray[z].tag) == -1) {
+          tagsToBeRemoved.push(tagsArray[z].tag);
+        }
+      }
+    }
+    var textToBeAdded = "";
+    tagsToBeRemoved.forEach(function(tag) {
+      textToBeAdded += "<div class=\"inlineblock removeTagsTag\" onclick=\"toggleRemoveTags(this);\">" + tag + "</div>";
+    });
+    document.getElementById("removeTagsListing").innerHTML = textToBeAdded;
   }
   document.getElementById('editTagsConfirm').onclick = function() {
     editTagsConfirm(action, picid, multiSelection);
@@ -1024,10 +1144,24 @@ function openAddTagsDialog(action, picid) {
       document.getElementById('editTagsDialogueArea').style.opacity = opa;
     }
   }
-  document.getElementById('editTagsInput').focus();
+  if(action == "add") {
+    document.getElementById('editTagsInput').focus();
+  }
+}
+function toggleRemoveTags(elm) {
+  if(!elm.classList.contains("removeTagsTagTBR")) {
+    editTagsArray.push(elm.innerHTML);
+    elm.classList.add("removeTagsTagTBR");
+  } else {
+    editTagsArray.splice(editTagsArray.indexOf(elm.innerHTML), 1);
+    elm.classList.remove("removeTagsTagTBR");
+  }
 }
 function editTagsConfirm (action, picid, multi) {
   var i;
+  for(i = 0; i < editTagsArray.length; i += 1) {
+    editTagsArray[i] = editTagsArray[i].stripIllegal();
+  }
   var x;
   var query = "INSERT INTO tags (tag, id) VALUES (?, ?);";
   if(multi) {
@@ -1063,6 +1197,9 @@ function editTagsConfirm (action, picid, multi) {
     }
   }
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
+  for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+    tagsForAutocomplete[i].tag = tagsForAutocomplete[i].tag.addSlashes();
+  }
   hideEditTagsDialogue();
 }
 function allowDrop(ev) {
@@ -1079,7 +1216,7 @@ function drop(ev) {
   }
 }
 function autocompleteEditTags () {
-  var value = document.getElementById('editTagsInput').value;
+  var value = document.getElementById('editTagsInput').value.stripIllegal();
   var i;
   var tagsToList = "";
   var z;
@@ -1087,14 +1224,14 @@ function autocompleteEditTags () {
   if(value != "") {
     for(i = 0; i < tagsForAutocomplete.length; i += 1) {
       add = true;
-      if(tagsForAutocomplete[i].tag.substring(0, value.length).toLowerCase() == value.toLowerCase()) {
+      if(tagsForAutocomplete[i].tag.stripSlashes().substring(0, value.length).toLowerCase() == value.toLowerCase()) {
         for(z = 0; z < editTagsArray.length; z += 1) {
           if(editTagsArray[z] == tagsForAutocomplete[i].tag) {
             add = false;
           }
         }
         if(add) {
-          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"editTagsAddTagToList(\'" + tagsForAutocomplete[i].tag + "\');\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.substr(value.length) + "</div>";
+          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"editTagsAddTagToList(\'" + tagsForAutocomplete[i].tag + "\');\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.stripSlashes().substr(value.length) + "</div>";
         }
       }
     }
@@ -1146,6 +1283,23 @@ function toggleOrderDropdown () {
     rotatePic.classList.remove('rotate180');
     orderDropdownShown = false;
     document.getElementById('orderDropdownHide').removeEventListener('outclick', orderDropdownHide);
+  }
+}
+function toggleZoomDropdown () {
+  var elm = document.getElementById('zoomDropdown');
+  var rotatePic = document.getElementById('zoomDropDownImage');
+  if(!zoomDropdownShown) {
+    rotatePic.classList.add('rotate180');
+    elm.classList.add('zoomDropdownDrop');
+    zoomDropdownShown = true;
+    zoomDropdownHide = document.getElementById('zoomDropdownHide').addEventListener('outclick', function(e) {
+      toggleZoomDropdown();
+    });
+  } else {
+    elm.classList.remove('zoomDropdownDrop');
+    rotatePic.classList.remove('rotate180');
+    zoomDropdownShown = false;
+    document.getElementById('zoomDropdownHide').removeEventListener('outclick', zoomDropdownHide);
   }
 }
 function toggleFilterDropdown () {
@@ -1241,9 +1395,10 @@ function searchAutocomplete(value) {
   var add;
   var elm = document.getElementById('searchAutocomplete');
   if(value != "") {
+    value = value.stripIllegal();
     for(i = 0; i < tagsForAutocomplete.length; i += 1) {
       add = true;
-      if(tagsForAutocomplete[i].tag.substring(0, value.length).toLowerCase() == value.toLowerCase()) {
+      if(tagsForAutocomplete[i].tag.stripSlashes().substring(0, value.length).toLowerCase() == value.toLowerCase()) {
         for(z = 0; z < searchArrayInc.length; z += 1) {
           if(searchArrayInc[z] == tagsForAutocomplete[i].tag) {
             add = false;
@@ -1255,7 +1410,7 @@ function searchAutocomplete(value) {
           }
         }
         if(add) {
-          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', false);\" oncontextmenu=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', true);\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.substring(value.length) + "</div>";
+          tagsToList += "<div class=\"autocompleteEntry\" onclick=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', false);\" oncontextmenu=\"addSearchTag('" + tagsForAutocomplete[i].tag + "', true);\"><b>" + value.toLowerCase() + "</b>" + tagsForAutocomplete[i].tag.stripSlashes().substring(value.length) + "</div>";
         }
       }
     }
@@ -1279,6 +1434,7 @@ function hideSearchAutocomplete() {
 }
 function addSearchTag(tag, exclude) {
   document.getElementById('searchbar').value = "";
+  tag = tag.stripIllegal();
   var classname;
   var element;
   var removeExclude;
@@ -1310,7 +1466,7 @@ function addSearchTag(tag, exclude) {
   }
   element = document.getElementById('searchTags');
   if(add) {
-    element.innerHTML += "<div id=\"searchTagName" + tag + "\" class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" /></div>";
+    element.innerHTML += "<div id=\"searchTagName" + tag + "\" class=\"tag " + classname + "\"><div class=\"inlineblock\" onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag.addSlashes() + "', " + removeExclude + ", this);\" /></div>";
     loadPictures();
     hideSearchAutocomplete();
   }
@@ -1340,9 +1496,11 @@ function addSearchTag(tag, exclude) {
   }
 }
 function removeSearchTag(tag, exclude, elm) {
+  console.log(tag);
   var i;
   if(!exclude) {
     for(i = 0; i < searchArrayInc.length; i += 1) {
+      console.log(searchArrayInc[i]);
       if(searchArrayInc[i] == tag) {
         searchArrayInc.splice(i, 1);
         if(tag == "nsfw" && db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
@@ -1441,29 +1599,32 @@ function switchIncludeExclude(tag, exclude, elm) {
   }
   element.classList.add(classadd);
   element.classList.remove(classremove);
-  element.innerHTML = "<div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag + "', " + removeExclude + ", this);\" />";
+  element.innerHTML = "<div class=\"inlineblock\"  onclick=\"switchIncludeExclude('" + tag + "', " + removeExclude + ", this);\">" + tag + "</div><img src=\"img/close.webp\" class=\"searchRemoveTag inlineblock\" onclick=\"removeSearchTag('" + tag.addSlashes() + "', " + removeExclude + ", this);\" />";
   loadPictures();
 }
 function editTagsAddTagToList (tagname) {
-  var i;
-  var add = true;
-  var z;
-  for(i = 0; i < editTagsArray.length; i += 1) {
-    if(tagname.toLowerCase() == editTagsArray[i]) {
-      add = false;
+  if(tagname != "") {
+    tagname = tagname.stripIllegal();
+    var i;
+    var add = true;
+    var z;
+    for(i = 0; i < editTagsArray.length; i += 1) {
+      if(tagname.toLowerCase() == editTagsArray[i]) {
+        add = false;
+      }
     }
-  }
-  for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
-    if(tagname.toLowerCase() == editTagsAlreadyAssigned[z].tag) {
-      add = false;
+    for(z = 0; z < editTagsAlreadyAssigned.length; z += 1) {
+      if(tagname.toLowerCase() == editTagsAlreadyAssigned[z].tag) {
+        add = false;
+      }
     }
+    if(add) {
+      editTagsArray.push(tagname.toLowerCase());
+      document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.webp\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
+      document.getElementById('editTagsInput').value = "";
+    }
+    hideEditTagsAutocomplete();
   }
-  if(add) {
-    editTagsArray.push(tagname.toLowerCase());
-    document.getElementById('editTagsListing').innerHTML += "<div class=\"editTagsListingTag\"><div class=\"editTagsListingTagText\">" + tagname + "</div><img src=\"img/close.webp\" class=\"editTagsRemoveTag\" onclick=\"editTagsRemoveTag('" + tagname + "', this);\" /></div>";
-    document.getElementById('editTagsInput').value = "";
-  }
-  hideEditTagsAutocomplete();
 }
 function editTagsRemoveTag (tag, elm) {
   var i;
@@ -1549,24 +1710,15 @@ function hideOverlay() {
   }
 }
 function loadMorePictures() {
-  var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-  if(canLoadMore && (linesShown+4)*Math.floor(mainWidth/(pictureScale*pictureClientSize)) > pictureid) {
-    var mainHeight = document.getElementById("mainpagecontent").clientHeight;
-    var picAmount = Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.ceil(mainHeight/(pictureScale*pictureClientSize));
-    if(pictureid + picAmount > piccount) {
-      picAmount = piccount - pictureid;
-      canLoadMore = false;
-    }
-    var picState = pictureid + picAmount;
-    for(i = pictureid; i < picState; i+=1) {
-      document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer\" id=\"pic" + pictureid + "container\"></div>");
+    for(i = pictureid; i < piccount; i+=1) {
+      document.getElementById("picloader").insertAdjacentHTML("beforeBegin", "<div class=\"piccontainer " + zoomClass + "\" id=\"pic" + pictureid + "container\"></div>");
       picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
       pictureidarray.push(pictures[i].id);
       pictureid += 1;
     }
-  }
 }
 function loadPictures() {
+  lastScrollTop = 0;
   document.getElementById("mainpagecontent").scrollTop = 0;
   picsHiddenUpTo = 0;
   picPaths = [];
@@ -1575,9 +1727,9 @@ function loadPictures() {
   var i;
   document.getElementById('picturecontainer').innerHTML = "";
   tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
-  var mainHeight = document.getElementById("mainpagecontent").clientHeight;
-  var mainWidth = document.getElementById("mainpagecontent").clientWidth;
-  var picAmount = (Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.ceil(mainHeight/(pictureScale*pictureClientSize)))+Math.floor(mainWidth/(pictureScale*pictureClientSize));
+  for(i = 0; i < tagsForAutocomplete.length; i += 1) {
+    tagsForAutocomplete[i].tag = tagsForAutocomplete[i].tag.addSlashes();
+  }
   var extension;
   var excludeQuery;
   if(excludedFiletypes.length == 0) {
@@ -1658,6 +1810,10 @@ function loadPictures() {
     }
   }
   countPics();
+  var mainHeight = document.getElementById("mainpagecontent").clientHeight;
+  var mainWidth = document.getElementById("mainpagecontent").clientWidth;
+  var picAmount = (Math.floor(mainWidth/(pictureClientSize))*Math.ceil(mainHeight/(pictureClientSize)))+Math.floor(mainWidth/(pictureClientSize));
+  lastPicsPerLine = Math.floor((mainWidth)/(pictureClientSize));
   canLoadMore = true;
   if(piccount < picAmount) {
     picAmount = piccount;
@@ -1681,23 +1837,24 @@ function loadPictures() {
     picFileName = pictures[i].filename.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
     extension = pictures[i].filename.substr(pictures[i].filename.lastIndexOf('.') + 1).toLowerCase();
     if(extension == "webm" || extension == "mp4") {
-      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\" id=\"pic" + pictureid + "container\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + pictureid + "\" loop muted autoplay><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
+      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer " + zoomClass + "\" id=\"pic" + pictureid + "container\"><video onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + pictureid + "\" loop muted autoplay><source src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" type=\"video/" + extension + "\"></video></div>";
     } else {
-      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer\" id=\"pic" + pictureid + "container\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture" + addMulti + "\" id=\"picture" + pictureid + "\" /></div>";
+      document.getElementById("picturecontainer").innerHTML += "<div class=\"piccontainer " + zoomClass + "\" id=\"pic" + pictureid + "container\"><img onclick=\"openDetails(" + pictures[i].id + ");\" oncontextmenu=\"showContextMenu(event, this, " + pictures[i].id + ");\" draggable=\"true\" ondragstart=\"drag(event, \'" + picPath + "\\\\" + picFileName + "\');\" src=\"" + pictures[i].path + "\\" + pictures[i].filename + "\" class=\"mainpagepicture " + mainZoomClass + addMulti + "\" id=\"picture" + pictureid + "\" /></div>";
     }
     picPaths.push(pictures[i].path + "\\" + pictures[i].filename);
     pictureidarray.push(pictures[i].id);
     pictureid += 1;
   }
   document.getElementById("picturecontainer").innerHTML += "<div id=\"picloader\"></div>";
-  var picAmountShown = Math.floor(mainWidth/(pictureScale*pictureClientSize))*Math.ceil(mainHeight/(pictureScale*pictureClientSize));
+  loadMorePictures();
+  var picAmountShown = Math.floor(mainWidth/(pictureClientSize))*Math.ceil(mainHeight/(pictureClientSize));
   var element;
   if(picAmount < picAmountShown) {
     picAmountShown = picAmount;
   }
   picsShownUpTo = picAmountShown;
   linesHidden = 0;
-  linesShown = Math.ceil(mainHeight/(pictureScale*pictureClientSize));
+  linesShown = Math.ceil(mainHeight/(pictureClientSize));
 }
 function returnMatching(array1, array2) {
   return array1.filter(function(n){ return array2.indexOf(n)>-1?n:false;});

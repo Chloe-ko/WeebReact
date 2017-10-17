@@ -46,6 +46,21 @@
               <div id="searchAutocomplete" class="autocomplete"></div>
             </div>
           </div>
+          <div id="zoomDropdownHide">
+            <div id="zoomDropdownButton" onclick="toggleZoomDropdown();">
+              <div id="zoomDropdownText" class="dropdownText">Zoom: 100%</div>
+              <div id="zoomDropDownImage" class="dropdownArrow"></div>
+            </div>
+            <div id="zoomDropdown" class="dropdown">
+              <div class="dropdownEntry" onclick="setZoom('0.5'); toggleZoomDropdown();">50%</div>
+              <div class="dropdownEntry" onclick="setZoom('0.75'); toggleZoomDropdown();">75%</div>
+              <div class="dropdownEntry" onclick="setZoom('1'); toggleZoomDropdown();">100%</div>
+              <div class="dropdownEntry" onclick="setZoom('1.25'); toggleZoomDropdown();">125%</div>
+              <div class="dropdownEntry" onclick="setZoom('1.5'); toggleZoomDropdown();">150%</div>
+              <div class="dropdownEntry" onclick="setZoom('1.75'); toggleZoomDropdown();">175%</div>
+              <div class="dropdownEntry dropdownEntryBottom" onclick="setZoom('2'); toggleZoomDropdown();">200%</div>
+            </div>
+          </div>
           <div id="selectMultipleArea">
             <div id="selectMultipleButton" class="optionsbutton inlineblock" onclick="toggleMultiSelection();">
               <div class="optionsbuttontext" id="selectMultipleButtonText">
@@ -120,7 +135,7 @@
             </div><div id="filedetailswrapper">
               <div id="closeDetails" onclick="closeFileDetails();"></div>
               <div id="detailsButtons">
-                <div class="detailsButton" id="detailsShowInFolderButton">Show in Folder</div><div class="detailsButton" id="detailsCopyLocationButton">Copy Location</div><div class="detailsButton" id="detailsExcludeButton">Exclude</div>
+                <div class="detailsButton" id="detailsShowInFolderButton">Show in Folder</div><div class="detailsButton" id="detailsCopyLocationButton">Copy Location</div>
               </div>
               <div id="filedetails">
               </div>
@@ -130,12 +145,16 @@
           </div>
           <div id="editTagsDialogueArea" class="overlayArea">
             <div id="editTagsDialogueWrapper" class="popUpDialogueWrapper">
-              <div id="editTagsDialogue" class="popUpDialogue">
+              <div id="editTagsDialogueAdd" class="popUpDialogue">
                 <div id="editTagsAutoWrapper">
                   <div id="editTagsAutocomplete" class="autocomplete"></div>
                   <input id="editTagsInput" oninput="autocompleteEditTags();" onfocus="autocompleteEditTags();" onkeypress="if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm();}}" /><button id="editTagsAddButton" onclick="editTagsAddTagToList(document.getElementById('editTagsInput').value.toLowerCase());" class="editTagsButtons">Add</button>
                 </div>
                 <div id="editTagsListing"></div>
+              </div>
+              <div id="editTagsDialogueRemove" class="popUpDialogue">
+                <div class="removeText">Select tags you want to remove:</div><br />
+                <div id="removeTagsListing"></div><br /><br />
               </div>
               <img src="img/close.webp" onclick="hideEditTagsDialogue();" id="editTagsCloseButton">
               <button id="editTagsConfirm" class="editTagsButtons">Confirm</button>

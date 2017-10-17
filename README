@@ -6,13 +6,7 @@ Once all the important things are done I'll make the code far cleaner.
 
 TODO:
 
-- fix special characters in tag names
-- list tags in edit tags dialogue
-- exclude function
-- fix error message when no internet access
-
 - sign installer
-- change updates to use GitHub
 - write download homepage
 
 For after important stuff is done:
@@ -33,7 +27,6 @@ For after important stuff is done:
     Messaging system, rating system
     Supposed to be a cloud to share reaction pics and memes, not a social platform
 
-Done: Mostly everything
 
 
 

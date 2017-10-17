@@ -202,6 +202,19 @@ html,body {
   cursor: pointer;
   left: 0;
 }
+#zoomDropdownButton {
+  height: 25px;
+  width: 100px;
+  border-radius: 10px;
+  outline: none;
+  border: 0px;
+  background-color: #bbbbbb;
+  text-align: middle;
+  position: absolute;
+  cursor: pointer;
+  left: 5px;
+  top: 6px;
+}
 #orderDropdownButton {
   height: 25px;
   width: 100px;
@@ -271,6 +284,12 @@ html,body {
   left: 51px;
   top: 28px;
 }
+#zoomDropdown {
+  position: absolute;
+  top: 31px;
+  left: 30px;
+  z-index: 4;
+}
 #orderDropdown {
   position: absolute;
   top: 28px;
@@ -283,6 +302,9 @@ html,body {
 }
 .sortingDropdownDrop {
   height: 75px;
+}
+.zoomDropdownDrop {
+  height: 175px;
 }
 .orderDropdownDrop {
   height: 50px;
@@ -483,26 +505,12 @@ html,body {
   margin-left: 10px;
 }
 #mainpagecontent {
-  width: calc(100% - 0px);
+  width: calc(100% - 10px);
   height: 100%;
   word-wrap: break-word;
   overflow-y: auto;
   overflow-x: hidden;
   text-align: center;
-}
-#mainpagecontent::-webkit-scrollbar {
-    width: 0px;
-    height: 0px;
-}
-#mainpagecontent::-webkit-scrollbar-track {
-  -webkit-box-shadow: 0;
-  border-radius: 0px;
-  margin-top: 0px;
-  margin-bottom: 0px;
-}
-#mainpagecontent::-webkit-scrollbar-thumb {
-  border-radius: 0px;
-  -webkit-box-shadow: 0;
 }
 #filepreview {
   display: inline-block;
@@ -555,6 +563,7 @@ html,body {
   margin-top: 10px;
   width: calc(100% - 60px);
   text-align: left;
+  margin-left: 10px;
 }
 .detailsButton {
   display: inline-block;
@@ -716,8 +725,33 @@ html,body {
   margin: 20px;
   min-height: 80px;
 }
-#editTagsDialogue {
+.removeText {
+  color: white;
+  font-size: 0.9em;
+}
+#removeTagsText {
+  //display: none;
+}
+.removeTagsTag {
+  background-color: #575757;
+  border-radius: 5px;
+  border: 1px solid black;
+  padding: 3px;
+  padding-top: 2px;
+  padding-right: 4px;
+  color: white;
+  font-size: 0.9em;
+  margin-bottom: 3px;
+  margin-right: 3px;
+  cursor: pointer;
+  -webkit-transition: background-color 0.3s;
+}
+.removeTagsTagTBR {
+  background-color: #c14242;
+}
+#editTagsDialogueAdd, #editTagsDialogueRemove {
   width: 241px;
+  display: none;
 }
 #settingsPopup {
   color: white;
@@ -922,20 +956,77 @@ html,body {
   margin-top: 130px;
 }
 .mainpagepicture {
-  max-height: 198px;
-  max-width: 198px;
   vertical-align: middle;
   border: 1px solid black;
   cursor: pointer;
-
+}
+.mainzoom50 {
+  max-height: 98px;
+  max-width: 98px;
+}
+.mainzoom75 {
+  max-height: 148px;
+  max-width: 148px;
+}
+.mainzoom100 {
+  max-height: 198px;
+  max-width: 198px;
+}
+.mainzoom125 {
+  max-height: 248px;
+  max-width: 248px;
+}
+.mainzoom150 {
+  max-height: 298px;
+  max-width: 298px;
+}
+.mainzoom175 {
+  max-height: 348px;
+  max-width: 348px;
+}
+.mainzoom200 {
+  max-height: 398px;
+  max-width: 398px;
 }
 .piccontainer {
   display: inline-block;
+  text-align: center;
+  margin: 5px;
+}
+.piczoom50 {
+  width: 100px;
+  height: 100px;
+  line-height: 100px;
+}
+.piczoom75 {
+  width: 150px;
+  height: 150px;
+  line-height: 150px;
+}
+.piczoom100 {
   width: 200px;
   height: 200px;
   line-height: 200px;
-  text-align: center;
-  margin: 5px;
+}
+.piczoom125 {
+  width: 250px;
+  height: 250px;
+  line-height: 250px;
+}
+.piczoom150 {
+  width: 300px;
+  height: 300px;
+  line-height: 300px;
+}
+.piczoom175 {
+  width: 350px;
+  height: 350px;
+  line-height: 350px;
+}
+.piczoom200 {
+  width: 400px;
+  height: 400px;
+  line-height: 400px;
 }
 #options {
   height: 68px;
@@ -1033,7 +1124,7 @@ html,body {
 }
 #selectMultipleArea {
   position: absolute;
-  left: 5px;
+  left: 114px;
   top: 5px;
 }
 .optionsbuttontext {

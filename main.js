@@ -8,7 +8,7 @@ const path = require('path');
 const url = require ('url');
 const appVersion = app.getVersion();
 const os = require('os');
-const updateFeedUrl = "http:\/\/weebreact.shironomia.de\/releases\/x64";
+const updateFeedUrl = "http:\/\/shironomia.de:3000";
 const fs = require('fs');
 
 var checkingForUpdate = false;
@@ -88,7 +88,7 @@ function createWindow() {
       win.webContents.openDevTools();
     }
     if(checkForUpdates) {
-    autoUpdater.checkForUpdates();
+    try {autoUpdater.checkForUpdates();} catch(err) {}
   }
   } else {
     win.webContents.openDevTools();
