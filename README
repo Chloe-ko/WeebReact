@@ -1,33 +1,3 @@
 A program to organize Reaction Pictures using a tagging system specially made for this kind of usage.
-I'm to lazy to add proper descriptions to every commit until the program is at least in a working state. Once it is, I'll add proper descriptions to every commit.
 
-I'll also eventually clean up the code, but since I am not too familiar with the Electron framework yet I have to test around a lot to get things working, hence the code will be somewhat unclean for now.
-Once all the important things are done I'll make the code far cleaner.
-
-TODO:
-
-- sign installer
-- write download homepage
-
-For after important stuff is done:
-
-12. If all else is done and I get no other ideas by now and some people actually would use it -> Cloud functionality!
-    Really only if people would use it.
-    1. Account system
-    2. Registration
-    3. Login
-    4. Ban System (in case people upload bullshit or spam with the intention of annoying others) (based on network interface MAC address https://github.com/scravy/node-macaddress)
-    5. Functionality to share own reaction pics and download the pics others uploaded
-    6. Comment System (At this point I practically made my own booru image system)
-    7. Friend/Subscription System to get notifications if they added more pics to the cloud
-    8. Report system
-    9. If people use cloud system and userbase gets bigger, request system if someone wants a certain pic
-
-    NOT needed in cloud functionality:
-    Messaging system, rating system
-    Supposed to be a cloud to share reaction pics and memes, not a social platform
-
-
-
-
-Testers: tobi, captchakid, silverrhythm, reycall, nico
+Check http://weebreact.shironomia.de/ for a feature list

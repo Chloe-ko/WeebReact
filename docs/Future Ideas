@@ -1,0 +1,15 @@
+Cloud functionality
+    Really only if people would use it.
+    1. Account system
+    2. Registration
+    3. Login
+    4. Ban System (in case people upload bullshit or spam with the intention of annoying others) (based on network interface MAC address https://github.com/scravy/node-macaddress)
+    5. Functionality to share own reaction pics and download the pics others uploaded
+    6. Comment System (At this point I practically made my own booru image system)
+    7. Friend/Subscription System to get notifications if they added more pics to the cloud
+    8. Report system
+    9. If people use cloud system and userbase gets bigger, request system if someone wants a certain pic
+
+    NOT needed in cloud functionality:
+    Messaging system, rating system
+    Supposed to be a cloud to share reaction pics and memes, not a social platform
