@@ -204,7 +204,7 @@ html,body {
 }
 #zoomDropdownButton {
   height: 25px;
-  width: 100px;
+  width: 105px;
   border-radius: 10px;
   outline: none;
   border: 0px;
@@ -287,7 +287,7 @@ html,body {
 #zoomDropdown {
   position: absolute;
   top: 31px;
-  left: 30px;
+  left: 50px;
   z-index: 4;
 }
 #orderDropdown {
@@ -1124,7 +1124,7 @@ html,body {
 }
 #selectMultipleArea {
   position: absolute;
-  left: 114px;
+  left: 119px;
   top: 5px;
 }
 .optionsbuttontext {
