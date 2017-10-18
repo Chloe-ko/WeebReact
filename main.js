@@ -88,8 +88,8 @@ function createWindow() {
       win.webContents.openDevTools();
     }
     if(checkForUpdates) {
-    try {autoUpdater.checkForUpdates();} catch(err) {}
-  }
+      try {autoUpdater.checkForUpdates();} catch(err) {}
+    } 
   } else {
     win.webContents.openDevTools();
   }
