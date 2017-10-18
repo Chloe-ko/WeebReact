@@ -278,6 +278,7 @@ function startupScan() {
       }
     }
   }
+  console.log(files);
   for(i = 0; i < knownFiles.length; i += 1) {
     db.prepare("UPDATE pictures SET available = ? WHERE id = ?;").run(0, knownFiles[i].id);
   }
@@ -617,34 +618,40 @@ function toggleIncludeSubdirectories(directory, elm) {
 }
 function addTagsSubdir(directory, elm) {
   elm.innerHTML = "Loading";
-  var directories = getDirectories(directory);
-  var i;
-  var x;
-  var files;
-  var picpath;
-  var filename;
-  var tags;
-  var picid;
-  var z;
-  var extension;
-  for(i = 0; i < directories.length; i += 1) {
-    files = getFiles(directory + "\\" + directories[i]);
-    for(x = 0; x < files.length; x += 1) {
-      picpath = files[x].substring(0, files[x].lastIndexOf("\\"));
-      filename = files[x].split('\\').pop();
-      extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
-      if(filetypes.indexOf(extension) != -1 || extension == "jpeg") {
-        tags = directories[i].split("\\");
-        picid = db.prepare('SELECT id FROM pictures WHERE filename = ? AND path = ?;').get(filename, picpath);
-        for(z = 0; z < tags.length; z += 1) {
-          if(db.prepare('SELECT count(*) FROM tags WHERE tag = ? and id = ?;').get(tags[z], picid.id)["count(*)"] == 0) {
-            db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(picid.id, tags[z]);
+  setTimeout(function() {
+    var directories = getDirectories(directory);
+    var i;
+    var x;
+    var files;
+    var picpath;
+    var filename;
+    var tags;
+    var picid;
+    var z;
+    var extension;
+    var hashesProcessed = [];
+    var hash;
+    for(i = 0; i < directories.length; i += 1) {
+      files = getFiles(directory + "\\" + directories[i]);
+      for(x = 0; x < files.length; x += 1) {
+        picpath = files[x].substring(0, files[x].lastIndexOf("\\"));
+        filename = files[x].split('\\').pop();
+        extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+        if(filetypes.indexOf(extension) != -1 || extension == "jpeg") {
+          tags = directories[i].split("\\");
+          hash = xxh.hash64(fs.readFileSync(files[x]), xxhashsalt, 'hex');
+          picid = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(hash);
+          for(z = 0; z < tags.length; z += 1) {
+            if(db.prepare('SELECT count(*) FROM tags WHERE tag = ? and id = ?;').get(tags[z].toLowerCase(), picid.id)["count(*)"] == 0 && hashesProcessed.indexOf(hash) == -1) {
+              db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(picid.id, tags[z].toLowerCase());
+              hashesProcessed.push(hash);
+            }
           }
         }
       }
     }
-  }
-  elm.innerHTML = "Done";
+    elm.innerHTML = "Done";
+  }, 50);
 }
 function toggleWatchDirectory(directory, elm) {
   var toSet;
@@ -1151,7 +1158,7 @@ function openAddTagsDialog(action, picid) {
     document.getElementById('editTagsAddButton').insertAdjacentHTML("beforeBegin", "<input type=\"text\" id=\"editTagsInput\" oninput=\"autocompleteEditTags();\" onfocus=\"autocompleteEditTags();\" onkeypress=\"if(event.keyCode == 13) {if(this.value != '') {editTagsAddTagToList(this.value.toLowerCase());} else {editTagsConfirm(\'" + action + "\', [" + picid + "], " + multiSelection + ");}}\" />");
     tagsForAutocomplete = db.prepare('SELECT DISTINCT tag FROM tags;').all();
     if(!multiSelection) {
-      editTagsAlreadyAssigned = db.prepare('SELECT tag FROM tags WHERE id = ?;').all(picid);
+      editTagsAlreadyAssigned = db.prepare('SELECT DISTINCT tag FROM tags WHERE id = ?;').all(picid);
     } else {
       editTagsAlreadyAssigned = [];
     }
@@ -1241,9 +1248,9 @@ function editTagsConfirm (action, picid, multi) {
         }
       }
       if(multi && cont) {
-        db.prepare(query).run(editTagsArray[i], picid[x]);
+        db.prepare(query).run(editTagsArray[i].toLowerCase(), picid[x]);
       } else if(!multi) {
-        db.prepare(query).run(editTagsArray[i], picid);
+        db.prepare(query).run(editTagsArray[i].toLowerCase(), picid);
       }
       if(fileDetailsOpen) {
         document.getElementById('fileDetailsAddTags').insertAdjacentHTML("beforeBegin", "<div class=\"picTagListing\"><div onclick=\"addSearchTag(\'" + editTagsArray[i] + "\', false);\" oncontextmenu=\"addSearchTag(\'" + editTagsArray[i] + "\', true);\" class=\"picTagText\">" + editTagsArray[i] + "</div><img src=\"img/close.webp\" class=\"tagDeleteButton\" onclick=\"removeTag(\'" + editTagsArray[i] + "\', \'" + picid + "\', this)\" /></div>");
@@ -1552,11 +1559,9 @@ function addSearchTag(tag, exclude) {
   }
 }
 function removeSearchTag(tag, exclude, elm) {
-  console.log(tag);
   var i;
   if(!exclude) {
     for(i = 0; i < searchArrayInc.length; i += 1) {
-      console.log(searchArrayInc[i]);
       if(searchArrayInc[i] == tag) {
         searchArrayInc.splice(i, 1);
         if(tag == "nsfw" && db.prepare('SELECT value FROM settings WHERE name = ?;').get("hidensfw").value == 1) {
