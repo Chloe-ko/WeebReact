@@ -1186,6 +1186,17 @@ html,body {
   position: absolute;
   left: 310px;
 }
+.addTagsDir {
+  height: 18px;
+  width: 40px;
+  border-left: 1px solid black;
+  line-height: 18px;
+  position: absolute;
+  left: 186px;
+  font-size: 0.6em;
+  cursor: pointer;
+  padding-left: 5px;
+}
 .incSubPic {
   height: 15px;
   width: 15px;

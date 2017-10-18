@@ -524,9 +524,9 @@ function toggleSettingsWindow () {
     var watchSub;
     var directoryq;
     var directoryname;
+    var subDirTag;
     for(i = 0; i < settingsDirectories.length; i += 1) {
       directoryq = settingsDirectories[i].directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
-      console.log(directoryq);
       settingsDirectories[i].directory = settingsDirectories[i].directory.addSlashes();
       firstListing = "";
       if(i == 0) {
@@ -534,8 +534,10 @@ function toggleSettingsWindow () {
       }
       if(settingsDirectories[i].includeSubdirectories == 1) {
         incSub = "incSubYes";
+        subDirTag = "<div class=\"addTagsDir inlineblock\" title=\"This tags all pictures inside this directory depending on what subdirectory they are in.\" onclick=\"addTagsSubdir('" + directoryq.addSlashes() +  "', this);\">Add Tags</div>";
       } else {
         incSub = "incSubNo";
+        subDirTag = "";
       }
       if(settingsDirectories[i].watch == 1) {
         watch = "incSubYes";
@@ -551,7 +553,7 @@ function toggleSettingsWindow () {
       if(directoryname == "") {
         directoryname = settingsDirectories[i].directory;
       }
-      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory.stripSlashes() + "\">" + directoryname + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watch + "\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watchSub + "\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq.addSlashes() + "', this);\">Remove</div></div>";
+      directoryListing += "<div class=\"directoryListing" + firstListing + "\"><div class=\"directoryName inlineblock\" title=\"" + settingsDirectories[i].directory.stripSlashes() + "\">" + directoryname + "</div>" + subDirTag + "<div class=\"incSub inlineblock\"><div class=\"incSubPic " + incSub + "\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watch + "\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic " + watchSub + "\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq.addSlashes() + "', this);\">Remove</div></div>";
     }
     document.getElementById('directoryListingBox').innerHTML = directoryListing;
     showOverlay();
@@ -585,6 +587,7 @@ function toggleSettingsWindow () {
 }
 function toggleIncludeSubdirectories(directory, elm) {
   var toSet;
+  var i;
   if(elm.classList.contains("incSubYes")) {
     toSet = 0;
     elm.classList.remove("incSubYes");
@@ -593,8 +596,17 @@ function toggleIncludeSubdirectories(directory, elm) {
     toSet = 1;
     elm.classList.add("incSubYes");
     elm.classList.remove("incSubNo");
+    for(i = 0; i < settingsDirectories.length; i += 1) {
+      if(settingsDirectories[i].directory != directory.addSlashes() && settingsDirectories[i].directory.indexOf(directory.addSlashes()) != -1) {
+        settingsDirectories.splice(i, 1);
+        removeElement(document.getElementById('directoryListingBox').children[i]);
+        i -= 1;
+      }
+    }
+    if(!document.getElementById('directoryListingBox').children[0].classList.contains("firstDirectoryListing")) {
+      document.getElementById('directoryListingBox').children[0].classList.add("firstDirectoryListing");
+    }
   }
-  var i;
   for(i = 0; i < settingsDirectories.length; i += 1) {
     if(settingsDirectories[i].directory == directory.addSlashes()) {
       settingsDirectories[i].includeSubdirectories = toSet;
@@ -602,6 +614,37 @@ function toggleIncludeSubdirectories(directory, elm) {
     }
   }
   restartNeeded = true;
+}
+function addTagsSubdir(directory, elm) {
+  elm.innerHTML = "Loading";
+  var directories = getDirectories(directory);
+  var i;
+  var x;
+  var files;
+  var picpath;
+  var filename;
+  var tags;
+  var picid;
+  var z;
+  var extension;
+  for(i = 0; i < directories.length; i += 1) {
+    files = getFiles(directory + "\\" + directories[i]);
+    for(x = 0; x < files.length; x += 1) {
+      picpath = files[x].substring(0, files[x].lastIndexOf("\\"));
+      filename = files[x].split('\\').pop();
+      extension = filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+      if(filetypes.indexOf(extension) != -1 || extension == "jpeg") {
+        tags = directories[i].split("\\");
+        picid = db.prepare('SELECT id FROM pictures WHERE filename = ? AND path = ?;').get(filename, picpath);
+        for(z = 0; z < tags.length; z += 1) {
+          if(db.prepare('SELECT count(*) FROM tags WHERE tag = ? and id = ?;').get(tags[z], picid.id)["count(*)"] == 0) {
+            db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(picid.id, tags[z]);
+          }
+        }
+      }
+    }
+  }
+  elm.innerHTML = "Done";
 }
 function toggleWatchDirectory(directory, elm) {
   var toSet;
@@ -668,21 +711,34 @@ function settingsAddDirectory(directory) {
   if(directory != undefined) {
     directory = directory[0];
     var cont = true;
+    var i;
     if(directory.slice(-1) == "\\") {
       directory = directory.substr(0, directory.length-1);
     }
-    var i;
     for(i = 0; i < settingsDirectories.length; i += 1) {
-      if(settingsDirectories[i].directory == directory.addSlashes()) {
+      if(directory.addSlashes().indexOf(settingsDirectories[i].directory) != -1 && settingsDirectories[i].includeSubdirectories == 1) {
+        alert("This directory is already included because it is part of:\n" + settingsDirectories[i].directory.stripSlashes());
+        cont = false;
+      } else if(settingsDirectories[i].directory == directory.addSlashes()) {
         cont = false;
       }
     }
     if(cont) {
+      for(i = 0; i < settingsDirectories.length; i += 1) {
+        if(settingsDirectories[i].directory.indexOf(directory.addSlashes()) != -1) {
+          settingsDirectories.splice(i, 1);
+          removeElement(document.getElementById('directoryListingBox').children[i]);
+          i -= 1;
+        }
+      }
       restartNeeded = true;
       directoryq = directory.replace(/([^\\])\\([^\\])/g,"$1\\\\$2");
       directory = directory.addSlashes();
       settingsDirectories.push({directory: directory, includeSubdirectories: 1, watch: 1, watchSub: 1});
       document.getElementById("directoryListingBox").innerHTML += "<div class=\"directoryListing\"><div class=\"directoryName inlineblock\" title=\"" + directory.stripSlashes() + "\">" + directory.stripSlashes().split('\\').pop() + "</div><div class=\"incSub inlineblock\"><div class=\"incSubPic incSubYes\" title=\"Include Subdirectories\" onclick=\"toggleIncludeSubdirectories('" + directoryq.addSlashes() + "', this)\"></div><div class=\"incSubPic incSubYes\" title=\"Watch Directory\" onclick=\"toggleWatchDirectory('" + directoryq.addSlashes() + "', this);\"></div><div class=\"incSubPic incSubYes\" title=\"Watch Subdirectories\nWarning: This can cause lags, freezes and heavy CPU usage if the directory contains huge amounts of subdirectories.\" onclick=\"toggleWatchSubdirectories('" + directoryq.addSlashes() + "', this);\"></div></div><div class=\"removeDir inlineblock\" onclick=\"removeDirectory('" + directoryq + "', this)\">Remove</div></div>";
+      if(!document.getElementById('directoryListingBox').children[0].classList.contains("firstDirectoryListing")) {
+        document.getElementById('directoryListingBox').children[0].classList.add("firstDirectoryListing");
+      }
     }
   }
 }
@@ -1972,7 +2028,9 @@ function addFolder(directory, sub, tag) {
                 id = db.prepare('SELECT id FROM pictures WHERE hash = ?;').get(filehash);
                 tags = directories[z].split("\\");
                 for(o = 0; o < tags.length; o += 1) {
-                  db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(id.id, tags[o].toLowerCase());
+                  if(db.prepare('SELECT count(*) FROM tags WHERE id = ? and tag = ?;').get(id.id, tags[o].toLowerCase())["count(*)"] == 0) {
+                    db.prepare('INSERT INTO tags (id, tag) VALUES (?, ?);').run(id.id, tags[o].toLowerCase());
+                  }
                 }
               }
             }
@@ -2011,23 +2069,18 @@ function getFiles(dir){
   var files = fs.readdirSync(dir);
   var i;
   var filestats;
-  var cont;
   for(i = 0; i < files.length; i+=1){
     cont = true;
     var name = dir+'\\'+files[i];
     try {
       filestats = fs.statSync(name);
     } catch(err) {
-      cont = false;
+      continue;
     }
-    if(cont == true) {
-      if(filestats.isDirectory() || filestats.size > 300000000) {
-        cont = false;
-      }
+    if(filestats.isDirectory() || filestats.size > 300000000) {
+      continue;
     }
-    if (cont){
-      fileList.push(name);
-    }
+    fileList.push(name);
   }
   return fileList;
 }
