@@ -89,7 +89,7 @@ function createWindow() {
     }
     if(checkForUpdates) {
       try {autoUpdater.checkForUpdates();} catch(err) {}
-    } 
+    }
   } else {
     win.webContents.openDevTools();
   }
@@ -100,6 +100,9 @@ ipcMain.on('ondragstart', (event,filePath) => {
     file: filePath,
     icon: ''
   })
+});
+process.on('uncaughtException', function(error) {
+  fs.writeFileSync(process.env.APPDATA + "\\WeebReact\\error.log", error);
 });
 function handleSquirrelEvent() {
   if (process.argv.length === 1) {
@@ -134,6 +137,7 @@ function handleSquirrelEvent() {
       spawnUpdate(['--createShortcut', exeName]);
       checkForUpdates = false;
     case '--squirrel-updated':
+      spawnUpdate(['--createShortcut', exeName]);
       setTimeout(app.quit, 1000);
       return true;
     case '--squirrel-uninstall':
