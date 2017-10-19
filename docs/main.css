@@ -4,6 +4,28 @@ html, body {
   font-family: calibri;
   color: white;
 }
+#previewvideo {
+  max-width: 100%;
+}
+.changepicbutton {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  margin: 4px;
+  cursor: pointer;
+}
+.cpbactive {
+  opacity: 1;
+}
+.cpbnotactive {
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+.cpbnotactive:hover {
+  opacity: 1;
+}
 #header {
   width: 100%;
   text-align: center;

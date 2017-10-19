@@ -9,7 +9,8 @@
   <body>
     <div id="header">
       <div id="headerleft">
-        <img src="previewmain.webp" id="mainpreviewpic" class="noselect" draggable="false" />
+        <img src="previewmain1.webp" id="mainpreviewpic" class="noselect" draggable="false" /><br />
+        <div id="changepicbutton1" class="changepicbutton cpbactive" onclick="changepreviewpic('1');"></div><div id="changepicbutton2" class="changepicbutton cpbnotactive" onclick="changepreviewpic('2');""></div>
       </div><div id="headerright">
         <div id="title" class="noselect">WeebReact</div>
         <div id="subtitle" class="noselect">Organize your Reaction Pics!</div>
@@ -31,6 +32,7 @@
           <div class="contenttext">
             WeebReact is an Application based on the <div id="electronlink" class="contentlink link inline">Electron Framework</div> that is made to give you optimal control over your Reaction Pics.
           </div>
+          <video id="previewvideo" controls><source src="PreviewVideo.webm" type="video/webm"></video><br /><br />
           <div class="contenttitle">
             Features
           </div>

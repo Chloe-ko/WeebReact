@@ -25,6 +25,17 @@ function init() {
   xhttp.open("GET", "https://api.github.com/repos/Shironomia/WeebReact/releases/latest", true);
   xhttp.send();
 }
+var previewpicshown = 1;
+function changepreviewpic(pic) {
+  if(previewpicshown != pic) {
+    document.getElementById('mainpreviewpic').src = "previewmain" + pic + ".webp";
+    document.getElementById('changepicbutton' + previewpicshown).classList.remove("cpbactive");
+    document.getElementById('changepicbutton' + previewpicshown).classList.add("cpbnotactive");
+    document.getElementById('changepicbutton' + pic).classList.remove("cpbnotactive");
+    document.getElementById('changepicbutton' + pic).classList.add("cpbactive");
+    previewpicshown = pic;
+  }
+}
 document.onreadystatechange = function () {
   if (document.readyState == "complete") {
     init();
